@@ -16,19 +16,19 @@ func check(err error) {
 func main() {
 	db := flimsydb.NewFlimsyDB()
 
-	err := db.Create("foo", "bar")
+	err := db.Create("foo", []byte("bar"))
 	check(err)
 
 	value, err := db.Read("foo")
 	check(err)
-	fmt.Println("Value:", value)
+	fmt.Println("Value:", string(value))
 
-	err = db.Update("foo", "baz")
+	err = db.Update("foo", []byte("baz"))
 	check(err)
 
 	value, err = db.Read("foo")
 	check(err)
-	fmt.Println("Updated value:", value)
+	fmt.Println("Updated value:", string(value))
 
 	err = db.Delete("foo")
 	check(err)
