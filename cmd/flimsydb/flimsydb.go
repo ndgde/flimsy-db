@@ -2,6 +2,7 @@ package flimsydb
 
 import (
 	"errors"
+	"sync"
 )
 
 var (
@@ -11,6 +12,7 @@ var (
 
 type FlimsyDB struct {
 	data map[string]string
+	mu   sync.RWMutex
 }
 
 func NewFlimsyDB() *FlimsyDB {
@@ -20,11 +22,15 @@ func NewFlimsyDB() *FlimsyDB {
 }
 
 func (db *FlimsyDB) keyExists(key string) bool {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
 	_, exists := db.data[key]
 	return exists
 }
 
 func (db *FlimsyDB) Create(key, value string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	if db.keyExists(key) {
 		return ErrKeyExists
 	}
@@ -34,6 +40,8 @@ func (db *FlimsyDB) Create(key, value string) error {
 }
 
 func (db *FlimsyDB) Read(key string) (string, error) {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
 	if !db.keyExists(key) {
 		return "", ErrKeyNotFound
 	}
@@ -43,6 +51,8 @@ func (db *FlimsyDB) Read(key string) (string, error) {
 }
 
 func (db *FlimsyDB) Update(key, value string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	if !db.keyExists(key) {
 		return ErrKeyNotFound
 	}
@@ -52,6 +62,8 @@ func (db *FlimsyDB) Update(key, value string) error {
 }
 
 func (db *FlimsyDB) Delete(key string) error {
+	db.mu.Lock()
+	defer db.mu.Unlock()
 	if !db.keyExists(key) {
 		return ErrKeyNotFound
 	}
