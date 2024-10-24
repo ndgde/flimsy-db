@@ -12,9 +12,9 @@ import (
 type ColumnType int
 
 const (
-	String ColumnType = iota
-	Int
-	Float
+	StringType ColumnType = iota
+	IntType
+	FloatType
 )
 
 type Column struct {
@@ -24,9 +24,11 @@ type Column struct {
 }
 
 var (
-	ErrIndexOutOfBounds = errors.New("index out of bounds")
-	ErrUnsupportedType  = errors.New("unsupported type")
-	ErrConversionFailed = errors.New("failed to convert to/from bytes")
+	ErrIndexOutOfBounds  = errors.New("index out of bounds")
+	ErrUnsupportedType   = errors.New("unsupported type")
+	ErrInappropriateType = errors.New("inappropriate type")
+	ErrInvalidKey        = errors.New("invalid key")
+	ErrConversionFailed  = errors.New("failed to convert to/from bytes")
 )
 
 type Row [][]byte
@@ -73,21 +75,21 @@ func toBytes(value any) ([]byte, error) {
 
 func fromBytes(data []byte, colType ColumnType) (any, error) {
 	switch colType {
-	case Int:
+	case IntType:
 		if len(data) < 8 {
 			return nil, ErrConversionFailed
 		}
 		val := int64(binary.LittleEndian.Uint64(data))
 		return int(val), nil
 
-	case Float:
+	case FloatType:
 		if len(data) < 8 {
 			return nil, ErrConversionFailed
 		}
 		bits := binary.LittleEndian.Uint64(data)
 		return math.Float64frombits(bits), nil
 
-	case String:
+	case StringType:
 		return string(data), nil
 
 	default:
@@ -95,9 +97,44 @@ func fromBytes(data []byte, colType ColumnType) (any, error) {
 	}
 }
 
+func (t *Table) validateValues(values map[string]any) error {
+	for key, value := range values {
+		columnFound := false
+		for _, column := range t.Columns {
+			if column.Name == key {
+				columnFound = true
+				switch column.Type {
+				case IntType:
+					if _, ok := value.(int); !ok {
+						return ErrInappropriateType
+					}
+				case FloatType:
+					if _, ok := value.(float64); !ok {
+						return ErrInappropriateType
+					}
+				case StringType:
+					if _, ok := value.(string); !ok {
+						return ErrInappropriateType
+					}
+				}
+				break
+			}
+		}
+		if !columnFound {
+			return ErrInvalidKey
+		}
+	}
+
+	return nil
+}
+
 func (t *Table) InsertRow(values map[string]any) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	if err := t.validateValues(values); err != nil {
+		return err
+	}
 
 	var row Row
 	for _, column := range t.Columns {
@@ -150,6 +187,10 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 
 	if index < 0 || index >= len(t.Rows) {
 		return ErrIndexOutOfBounds
+	}
+
+	if err := t.validateValues(values); err != nil {
+		return err
 	}
 
 	for valIndex := range t.Rows[index] {

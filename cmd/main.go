@@ -15,10 +15,10 @@ import (
 
 func main() {
 	columns := []fdb.Column{
-		{Name: "ID", Type: fdb.Int, Default: 0},
-		{Name: "Name", Type: fdb.String, Default: "Unknown"},
-		{Name: "Age", Type: fdb.Int, Default: 18},
-		{Name: "Salary", Type: fdb.Float, Default: 0.0},
+		{Name: "ID", Type: fdb.IntType, Default: 0},
+		{Name: "Name", Type: fdb.StringType, Default: "Unknown"},
+		{Name: "Age", Type: fdb.IntType, Default: 18},
+		{Name: "Salary", Type: fdb.FloatType, Default: 0.0},
 	}
 
 	table := fdb.NewTable(columns)
