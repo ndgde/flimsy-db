@@ -4,37 +4,47 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ndgde/flimsy-db/cmd/flimsydb"
+	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
 )
 
-func check(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
+// func check(err error) {
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
 
 func main() {
-	db := flimsydb.NewFlimsyDB()
+	columns := []fdb.Column{
+		{Name: "ID", Type: fdb.Int, Default: 0},
+		{Name: "Name", Type: fdb.String, Default: "Unknown"},
+		{Name: "Age", Type: fdb.Int, Default: 18},
+		{Name: "Salary", Type: fdb.Float, Default: 0.0},
+	}
 
-	err := db.Create("foo", []byte("bar"))
-	check(err)
+	table := fdb.NewTable(columns)
 
-	value, err := db.Read("foo")
-	check(err)
-	fmt.Println("Value:", string(value))
+	table.InsertRow(map[string]any{"ID": 1, "Name": "Alice", "Age": 30})
+	table.InsertRow(map[string]any{"ID": 2})
+	table.InsertRow(map[string]any{"ID": 3, "Name": "Bob", "Age": 25, "Salary": 1000.50})
 
-	err = db.Update("foo", []byte("baz"))
-	check(err)
+	table.PrintTable()
 
-	value, err = db.Read("foo")
-	check(err)
-	fmt.Println("Updated value:", string(value))
+	if err := table.UpdateRow(1, map[string]any{"Name": "Charlie", "Age": 28}); err != nil {
+		log.Fatal(err)
+	}
 
-	err = db.Delete("foo")
-	check(err)
+	if err := table.DeleteRow(0); err != nil {
+		log.Fatal(err)
+	}
 
-	_, err = db.Read("foo")
-	if err != nil {
-		fmt.Println("Error:", err)
+	table.PrintTable()
+
+	if row, err := table.GetRow(0); err == nil {
+		fmt.Println("Содержимое первой строки:")
+		for key, value := range row {
+			fmt.Printf("%s: %v\n", key, value)
+		}
+	} else {
+		fmt.Println(err)
 	}
 }

@@ -30,8 +30,6 @@ func NewFlimsyDB() *FlimsyDB {
 }
 
 func (db *FlimsyDB) keyExists(key string) bool {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
 	_, exists := db.data[key]
 	return exists
 }

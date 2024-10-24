@@ -18,7 +18,7 @@ run:
 	@echo -e "Running the project...\n"
 	@./$(BINARY)
 
-
+rerun: build run
 
 test:
 	@echo "⚪ Running tests..."
