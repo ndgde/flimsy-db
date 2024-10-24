@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 
 	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
 )
@@ -14,37 +13,59 @@ import (
 // }
 
 func main() {
+	db := fdb.NewFlimsyDB()
+
 	columns := []fdb.Column{
 		{Name: "ID", Type: fdb.IntType, Default: 0},
-		{Name: "Name", Type: fdb.StringType, Default: "Unknown"},
-		{Name: "Age", Type: fdb.IntType, Default: 18},
-		{Name: "Salary", Type: fdb.FloatType, Default: 0.0},
+		{Name: "Name", Type: fdb.StringType, Default: ""},
+		{Name: "Age", Type: fdb.IntType, Default: 0},
 	}
 
-	table := fdb.NewTable(columns)
+	err := db.CreateTable("Users", columns)
+	if err != nil {
+		fmt.Println("Error creating table:", err)
+		return
+	}
 
-	table.InsertRow(map[string]any{"ID": 1, "Name": "Alice", "Age": 30})
-	table.InsertRow(map[string]any{"ID": 2})
-	table.InsertRow(map[string]any{"ID": 3, "Name": "Bob", "Age": 25, "Salary": 1000.50})
+	table, err := db.GetTable("Users")
+	if err != nil {
+		fmt.Println("Error getting table:", err)
+		return
+	}
 
+	err = table.InsertRow(map[string]any{"ID": 1, "Name": "Alice", "Age": 30})
+	if err != nil {
+		fmt.Println("Error inserting row:", err)
+	}
+
+	err = table.InsertRow(map[string]any{"ID": 2, "Name": "Bob", "Age": 25})
+	if err != nil {
+		fmt.Println("Error inserting row:", err)
+	}
+
+	fmt.Println("Users Table:")
 	table.PrintTable()
 
-	if err := table.UpdateRow(1, map[string]any{"Name": "Charlie", "Age": 28}); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := table.DeleteRow(0); err != nil {
-		log.Fatal(err)
-	}
-
-	table.PrintTable()
-
-	if row, err := table.GetRow(0); err == nil {
-		fmt.Println("Содержимое первой строки:")
-		for key, value := range row {
-			fmt.Printf("%s: %v\n", key, value)
-		}
+	row, err := table.GetRow(0)
+	if err != nil {
+		fmt.Println("Error getting row:", err)
 	} else {
-		fmt.Println(err)
+		fmt.Println("First row:", row)
 	}
+
+	err = table.UpdateRow(0, map[string]any{"Age": 31})
+	if err != nil {
+		fmt.Println("Error updating row:", err)
+	}
+
+	fmt.Println("Users Table after update:")
+	table.PrintTable()
+
+	err = table.DeleteRow(1)
+	if err != nil {
+		fmt.Println("Error deleting row:", err)
+	}
+
+	fmt.Println("Users Table after deletion:")
+	table.PrintTable()
 }

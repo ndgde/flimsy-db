@@ -179,8 +179,10 @@ func (t *Table) GetRow(index int) (map[string]any, error) {
 	return result, nil
 }
 
-// For now, due to this error, this data operation is not atomic and
-// can be performed partially, this should be corrected in the future
+/*
+For now, due to this error, this data operation is not atomic and
+can be performed partially, this should be corrected in the future
+*/
 func (t *Table) UpdateRow(index int, values map[string]any) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -215,7 +217,7 @@ func (t *Table) DeleteRow(index int) error {
 		return ErrIndexOutOfBounds
 	}
 
-	t.Rows = append(t.Rows[:index], t.Rows[index+1:]...) // is still a very expensive operation
+	t.Rows = append(t.Rows[:index], t.Rows[index+1:]...) /* is still a very expensive operation */
 
 	return nil
 }

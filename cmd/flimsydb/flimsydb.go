@@ -2,89 +2,79 @@ package flimsydb
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 )
 
 var (
-	ErrKeyExists   = errors.New("key already exists")
-	ErrKeyNotFound = errors.New("key not found")
+	ErrTableExists   = errors.New("key already exists")
+	ErrTableNotFound = errors.New("key not found")
 )
 
-type Database interface {
-	Create(key string, value []byte) error
-	Read(key string) ([]byte, error)
-	Update(key string, value []byte) error
-	Delete(key string) error
-	All() map[string][]byte
-}
-
 type FlimsyDB struct {
-	data map[string][]byte
-	mu   sync.RWMutex
+	tables map[string]*Table
+	mu     sync.RWMutex
 }
 
 func NewFlimsyDB() *FlimsyDB {
 	return &FlimsyDB{
-		data: make(map[string][]byte),
+		tables: make(map[string]*Table),
 	}
 }
 
-func (db *FlimsyDB) keyExists(key string) bool {
-	_, exists := db.data[key]
+func (db *FlimsyDB) TableExists(name string) bool {
+	_, exists := db.tables[name]
 	return exists
 }
 
-func (db *FlimsyDB) Create(key string, value []byte) error {
+func (db *FlimsyDB) CreateTable(name string, columns []Column) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if db.keyExists(key) {
-		return ErrKeyExists
+	if db.TableExists(name) {
+		return ErrTableExists
 	}
-	db.data[key] = value
+	db.tables[name] = NewTable(columns)
 
 	return nil
 }
 
-func (db *FlimsyDB) Read(key string) ([]byte, error) {
+func (db *FlimsyDB) GetTable(name string) (*Table, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	if !db.keyExists(key) {
-		return nil, ErrKeyNotFound
+	if !db.TableExists(name) {
+		return nil, ErrTableNotFound
 	}
-	value := db.data[key]
 
-	return value, nil
+	return db.tables[name], nil
 }
 
-func (db *FlimsyDB) Update(key string, value []byte) error {
+func (db *FlimsyDB) Delete(name string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if !db.keyExists(key) {
-		return ErrKeyNotFound
+	if !db.TableExists(name) {
+		return ErrTableNotFound
 	}
-	db.data[key] = value
+	delete(db.tables, name)
 
 	return nil
 }
 
-func (db *FlimsyDB) Delete(key string) error {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-	if !db.keyExists(key) {
-		return ErrKeyNotFound
-	}
-	delete(db.data, key)
-
-	return nil
-}
-
-func (db *FlimsyDB) All() map[string][]byte {
+func (db *FlimsyDB) AllTables() map[string]*Table {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	result := make(map[string][]byte)
-	for k, v := range db.data {
+	result := make(map[string]*Table)
+	for k, v := range db.tables {
 		result[k] = v
-
 	}
+
 	return result
+}
+
+func (db *FlimsyDB) PrintTables() {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	for name := range db.tables {
+		fmt.Printf("•%v\n", name)
+	}
 }
