@@ -1,6 +1,6 @@
 BINARY=bin/flimsy-db
 MAIN=cmd/main.go
-TESTS=./...
+TESTS=./tests
 
 .PHONY: all build run test clean
 
