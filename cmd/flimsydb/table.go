@@ -179,10 +179,6 @@ func (t *Table) GetRow(index int) (map[string]any, error) {
 	return result, nil
 }
 
-/*
-For now, due to this error, this data operation is not atomic and
-can be performed partially, this should be corrected in the future
-*/
 func (t *Table) UpdateRow(index int, values map[string]any) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -195,6 +191,8 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 		return err
 	}
 
+	rowSize := len(t.Columns)
+	row := make(Row, rowSize)
 	for valIndex := range t.Rows[index] {
 		if newValue, exists := values[t.Columns[valIndex].Name]; exists {
 			byteValue, err := toBytes(newValue)
@@ -202,9 +200,13 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 				return err
 			}
 
-			t.Rows[index][valIndex] = byteValue
+			row[valIndex] = byteValue
+
+		} else {
+			row[valIndex] = t.Rows[index][valIndex]
 		}
 	}
+	t.Rows[index] = row
 
 	return nil
 }
