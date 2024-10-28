@@ -69,7 +69,7 @@ func main() {
 		log.Fatalf("Error deleting: %v", err)
 	}
 
-	ptrs, notFound = indexer.Find(MyKey{value: 2})
+	_, notFound = indexer.Find(MyKey{value: 2})
 	if notFound {
 		fmt.Println("Value not found")
 	}
