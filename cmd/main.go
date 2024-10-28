@@ -2,70 +2,75 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
 )
 
-// func check(err error) {
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
+type MyKey struct {
+	value int
+}
+
+func (k MyKey) Less(other int) bool {
+	return k.value < other
+}
+
+func (k MyKey) Greater(other int) bool {
+	return k.value > other
+}
+
+func (k MyKey) LessOrEqual(other int) bool {
+	return k.value <= other
+}
+
+func (k MyKey) GreaterOrEqual(other int) bool {
+	return k.value >= other
+}
 
 func main() {
-	db := fdb.NewFlimsyDB()
+	indexer := fdb.NewHashMapIndexer[int, MyKey]()
 
-	columns := []fdb.Column{
-		{Name: "ID", Type: fdb.IntType, Default: 0},
-		{Name: "Name", Type: fdb.StringType, Default: ""},
-		{Name: "Age", Type: fdb.IntType, Default: 0},
+	err := indexer.Add(MyKey{value: 1}, 100)
+	if err != nil {
+		log.Fatalf("Error adding: %v", err)
 	}
 
-	err := db.CreateTable("Users", columns)
+	err = indexer.Add(MyKey{value: 1}, 101)
 	if err != nil {
-		fmt.Println("Error creating table:", err)
-		return
+		log.Fatalf("Error adding: %v", err)
 	}
 
-	table, err := db.GetTable("Users")
+	err = indexer.Add(MyKey{value: 1}, 100)
 	if err != nil {
-		fmt.Println("Error getting table:", err)
-		return
+		fmt.Println(err)
 	}
 
-	err = table.InsertRow(map[string]any{"ID": 1, "Name": "Alice", "Age": 30})
-	if err != nil {
-		fmt.Println("Error inserting row:", err)
-	}
-
-	err = table.InsertRow(map[string]any{"ID": 2, "Name": "Bob", "Age": 25})
-	if err != nil {
-		fmt.Println("Error inserting row:", err)
-	}
-
-	fmt.Println("Users Table:")
-	table.PrintTable()
-
-	row, err := table.GetRow(0)
-	if err != nil {
-		fmt.Println("Error getting row:", err)
+	ptrs, notFound := indexer.Find(MyKey{value: 1})
+	if notFound {
+		fmt.Println("Value not found")
 	} else {
-		fmt.Println("First row:", row)
+		fmt.Printf("Found pointers for 1: %v\n", ptrs)
 	}
 
-	err = table.UpdateRow(0, map[string]any{"Age": 31})
+	err = indexer.Update(MyKey{value: 1}, MyKey{value: 2}, 100)
 	if err != nil {
-		fmt.Println("Error updating row:", err)
+		log.Fatalf("Error updating: %v", err)
 	}
 
-	fmt.Println("Users Table after update:")
-	table.PrintTable()
+	ptrs, notFound = indexer.Find(MyKey{value: 2})
+	if notFound {
+		fmt.Println("Value not found")
+	} else {
+		fmt.Printf("Found pointers for 2: %v\n", ptrs)
+	}
 
-	err = table.DeleteRow(1)
+	err = indexer.Delete(MyKey{value: 2}, 100)
 	if err != nil {
-		fmt.Println("Error deleting row:", err)
+		log.Fatalf("Error deleting: %v", err)
 	}
 
-	fmt.Println("Users Table after deletion:")
-	table.PrintTable()
+	ptrs, notFound = indexer.Find(MyKey{value: 2})
+	if notFound {
+		fmt.Println("Value not found")
+	}
 }
