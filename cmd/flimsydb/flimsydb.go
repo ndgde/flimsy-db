@@ -27,7 +27,7 @@ func (db *FlimsyDB) TableExists(name string) bool {
 	return exists
 }
 
-func (db *FlimsyDB) CreateTable(name string, columns []Column) error {
+func (db *FlimsyDB) CreateTable(name string, columns []*Column) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	if db.TableExists(name) {

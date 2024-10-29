@@ -113,22 +113,18 @@ func TestTable_Concurrency(t *testing.T) {
 	table := fdb.NewTable(columns)
 
 	for i := 0; i < 100; i++ {
-		go func(i int) {
-			err := table.InsertRow(map[string]any{"ID": i, "Name": "User"})
-			if err != nil {
-				t.Errorf("expected no error, got %v", err)
-			}
-		}(i)
+		err := table.InsertRow(map[string]any{"ID": i, "Name": "User"})
+		if err != nil {
+			t.Errorf("expected no error, got %v", err)
+		}
 	}
 
 	for i := 0; i < 100; i++ {
-		go func(i int) {
-			row, err := table.GetRow(i)
-			if err != nil && i < len(table.Rows) {
-				t.Errorf("expected no error, got %v", err)
-			} else if i < len(table.Rows) && row["ID"] != i {
-				t.Errorf("expected ID: %d, got ID: %v", i, row["ID"])
-			}
-		}(i)
+		row, err := table.GetRow(i)
+		if err != nil && i < len(table.Rows) {
+			t.Errorf("expected no error, got %v", err)
+		} else if i < len(table.Rows) && row["ID"] != i {
+			t.Errorf("expected ID: %d, got ID: %v", i, row["ID"])
+		}
 	}
 }

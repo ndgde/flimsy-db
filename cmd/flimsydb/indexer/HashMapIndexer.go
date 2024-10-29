@@ -1,47 +1,31 @@
-package flimsydb
+package indexer
 
 import (
 	"errors"
 	"sync"
 )
 
-type Indexable[K comparable] interface {
-	comparable
-	Less(other K) bool
-	Greater(other K) bool
-	LessOrEqual(other K) bool
-	GreaterOrEqual(other K) bool
-}
-
-type Indexer[K comparable, I Indexable[K]] interface {
-	Add(val I, ptr int) error
-	Update(oldVal I, newVal I, ptr int) error
-	Delete(val I, ptr int) error
-	Find(val I) ([]int, bool)
-	FindInRange(min I, max I) ([]int, bool)
-}
-
-type HashMapIndexer[K comparable, I Indexable[K]] struct {
+type HashMapIndexer[K Indexable[K]] struct {
 	mu    sync.RWMutex
-	store map[I][]int
+	store map[K][]int
 }
 
-func NewHashMapIndexer[K comparable, I Indexable[K]]() *HashMapIndexer[K, I] {
-	return &HashMapIndexer[K, I]{
-		store: make(map[I][]int),
+func NewHashMapIndexer[K Indexable[K]]() *HashMapIndexer[K] {
+	return &HashMapIndexer[K]{
+		store: make(map[K][]int),
 	}
 }
 
-func (h *HashMapIndexer[_, I]) ptrsExists(val I) bool {
+func (h *HashMapIndexer[K]) valExists(val K) bool {
 	_, exists := h.store[val]
 	return exists
 }
 
-func (h *HashMapIndexer[_, I]) Add(val I, ptr int) error {
+func (h *HashMapIndexer[K]) Add(val K, ptr int) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.ptrsExists(val) {
+	if h.valExists(val) {
 		for _, p := range h.store[val] {
 			if p == ptr {
 				return errors.New("index already exists")
@@ -57,11 +41,11 @@ func (h *HashMapIndexer[_, I]) Add(val I, ptr int) error {
 	return nil
 }
 
-func (h *HashMapIndexer[_, I]) Delete(val I, ptr int) error {
+func (h *HashMapIndexer[K]) Delete(val K, ptr int) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if !h.ptrsExists(val) {
+	if !h.valExists(val) {
 		return errors.New("pointer not exists")
 	}
 
@@ -78,7 +62,11 @@ func (h *HashMapIndexer[_, I]) Delete(val I, ptr int) error {
 	return errors.New("pointer not exists")
 }
 
-func (h *HashMapIndexer[_, I]) Update(oldVal I, newVal I, ptr int) error {
+func (h *HashMapIndexer[K]) Update(oldVal K, newVal K, ptr int) error {
+	if newVal.Equal(oldVal) {
+		return nil
+	}
+
 	if err := h.Delete(oldVal, ptr); err != nil {
 		return err
 	}
@@ -90,18 +78,18 @@ func (h *HashMapIndexer[_, I]) Update(oldVal I, newVal I, ptr int) error {
 	return nil
 }
 
-func (h *HashMapIndexer[_, I]) Find(val I) ([]int, bool) { /* returns indexes and empty var ot type bool */
+func (h *HashMapIndexer[K]) Find(val K) ([]int, bool) { /* returns indexes and empty var ot type bool */
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	if h.ptrsExists(val) {
+	if h.valExists(val) {
 		return h.store[val], false
 	}
 
 	return []int{}, true
 }
 
-func (h *HashMapIndexer[K, I]) FindInRange(min K, max K) ([]int, bool) {
+func (h *HashMapIndexer[K]) FindInRange(min K, max K) ([]int, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 

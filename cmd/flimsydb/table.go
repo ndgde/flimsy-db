@@ -1,27 +1,10 @@
 package flimsydb
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"sync"
 )
-
-type ColumnType int
-
-const (
-	StringType ColumnType = iota
-	IntType
-	FloatType
-)
-
-type Column struct {
-	Name    string
-	Type    ColumnType
-	Default any
-}
 
 var (
 	ErrIndexOutOfBounds  = errors.New("index out of bounds")
@@ -31,21 +14,31 @@ var (
 	ErrConversionFailed  = errors.New("failed to convert to/from bytes")
 )
 
-type Row [][]byte
+type Serializable interface {
+	Serialize() ([]byte, error)
+	Deserialize(data []byte) error
+}
+
+type Tabular interface {
+	Serializable
+}
+
+type Row []Tabular
 
 type Table struct {
 	mu      sync.RWMutex
-	Columns []Column
+	Columns []*Column
 	Rows    []Row
 }
 
-func NewTable(columns []Column) *Table {
+func NewTable(columns []*Column) *Table {
 	return &Table{
 		Columns: columns,
 		Rows:    []Row{},
 	}
 }
 
+/*
 func toBytes(value any) ([]byte, error) {
 	var buf bytes.Buffer
 	var data []byte
@@ -96,6 +89,7 @@ func fromBytes(data []byte, colType ColumnType) (any, error) {
 		return nil, ErrConversionFailed
 	}
 }
+*/
 
 func (t *Table) validateValues(values map[string]any) error {
 	for key, value := range values {
@@ -104,15 +98,15 @@ func (t *Table) validateValues(values map[string]any) error {
 			if column.Name == key {
 				columnFound = true
 				switch column.Type {
-				case IntType:
-					if _, ok := value.(int); !ok {
+				case Int32ColumnType:
+					if _, ok := value.(int32); !ok {
 						return ErrInappropriateType
 					}
-				case FloatType:
+				case Float64ColumnType:
 					if _, ok := value.(float64); !ok {
 						return ErrInappropriateType
 					}
-				case StringType:
+				case StringColumnType:
 					if _, ok := value.(string); !ok {
 						return ErrInappropriateType
 					}
@@ -143,12 +137,7 @@ func (t *Table) InsertRow(values map[string]any) error {
 			value = column.Default
 		}
 
-		data, err := toBytes(value)
-		if err != nil {
-			return err
-		}
-
-		row = append(row, data)
+		row = append(row, value)
 	}
 	t.Rows = append(t.Rows, row)
 
@@ -167,12 +156,7 @@ func (t *Table) GetRow(index int) (map[string]any, error) {
 	copy(rowCopy[:], t.Rows[index][:])
 
 	result := make(map[string]any)
-	for i, byteValue := range t.Rows[index] {
-		value, err := fromBytes(byteValue, t.Columns[i].Type)
-		if err != nil {
-			return nil, err
-		}
-
+	for i, value := range t.Rows[index] {
 		result[t.Columns[i].Name] = value
 	}
 
@@ -195,12 +179,7 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 	row := make(Row, rowSize)
 	for valIndex := range t.Rows[index] {
 		if newValue, exists := values[t.Columns[valIndex].Name]; exists {
-			byteValue, err := toBytes(newValue)
-			if err != nil {
-				return err
-			}
-
-			row[valIndex] = byteValue
+			row[valIndex] = newValue
 
 		} else {
 			row[valIndex] = t.Rows[index][valIndex]
@@ -234,13 +213,7 @@ func (t *Table) PrintTable() {
 	fmt.Println()
 
 	for _, row := range t.Rows {
-		for i, byteValue := range row {
-			value, err := fromBytes(byteValue, t.Columns[i].Type)
-
-			if err != nil {
-				value = "Err"
-			}
-
+		for _, value := range row {
 			fmt.Printf("%v\t", value)
 		}
 
