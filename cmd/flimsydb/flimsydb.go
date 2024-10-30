@@ -1,19 +1,13 @@
 package flimsydb
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 )
 
-var (
-	ErrTableExists   = errors.New("key already exists")
-	ErrTableNotFound = errors.New("key not found")
-)
-
 type FlimsyDB struct {
-	tables map[string]*Table
 	mu     sync.RWMutex
+	tables map[string]*Table
 }
 
 func NewFlimsyDB() *FlimsyDB {
@@ -22,58 +16,65 @@ func NewFlimsyDB() *FlimsyDB {
 	}
 }
 
-func (db *FlimsyDB) TableExists(name string) bool {
-	_, exists := db.tables[name]
-	return exists
-}
-
 func (db *FlimsyDB) CreateTable(name string, columns []*Column) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if db.TableExists(name) {
+
+	if db.tableExists(name) {
 		return ErrTableExists
 	}
-	db.tables[name] = NewTable(columns)
 
+	db.tables[name] = NewTable(columns)
 	return nil
 }
 
 func (db *FlimsyDB) GetTable(name string) (*Table, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	if !db.TableExists(name) {
+
+	table, exists := db.tables[name]
+	if !exists {
 		return nil, ErrTableNotFound
 	}
-
-	return db.tables[name], nil
+	return table, nil
 }
 
-func (db *FlimsyDB) Delete(name string) error {
+func (db *FlimsyDB) DeleteTable(name string) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
-	if !db.TableExists(name) {
+
+	if !db.tableExists(name) {
 		return ErrTableNotFound
 	}
 	delete(db.tables, name)
-
 	return nil
 }
 
-func (db *FlimsyDB) AllTables() map[string]*Table {
+func (db *FlimsyDB) tableExists(name string) bool {
+	_, exists := db.tables[name]
+	return exists
+}
+
+func (db *FlimsyDB) TableExists(name string) bool {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	result := make(map[string]*Table)
-	for k, v := range db.tables {
-		result[k] = v
-	}
 
-	return result
+	_, exists := db.tables[name]
+	return exists
+}
+
+func (db *FlimsyDB) ListTables() []string {
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	tables := make([]string, 0, len(db.tables))
+	for name := range db.tables {
+		tables = append(tables, name)
+	}
+	return tables
 }
 
 func (db *FlimsyDB) PrintTables() {
-	db.mu.RLock()
-	defer db.mu.RUnlock()
-
 	for name := range db.tables {
 		fmt.Printf("•%v\n", name)
 	}

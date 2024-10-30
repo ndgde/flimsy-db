@@ -4,66 +4,71 @@ import (
 	"fmt"
 	"log"
 
-	idxr "github.com/ndgde/flimsy-db/cmd/flimsydb/indexer"
+	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
+	"github.com/ndgde/flimsy-db/cmd/flimsydb/indexer"
 )
 
-type MyKey int
-
-func (k MyKey) Less(other MyKey) bool {
-	return k < other
-}
-
-func (k MyKey) Greater(other MyKey) bool {
-	return k > other
-}
-
-func (k MyKey) LessOrEqual(other MyKey) bool {
-	return k <= other
-}
-
-func (k MyKey) GreaterOrEqual(other MyKey) bool {
-	return k >= other
-}
-
 func main() {
-	indexer := idxr.NewHashMapIndexer[MyKey]()
+	// Initialize DB
+	db := fdb.NewFlimsyDB()
+	fmt.Println("🗄️  Initializing FlimsyDB...")
 
-	err := indexer.Add(1, 100)
+	// Create table
+	columns := []*fdb.Column{
+		fdb.NewColumn("id", fdb.Int32ColumnType, fdb.NewInt32Tabular(0), indexer.HashMapIndexerType),
+		fdb.NewColumn("name", fdb.StringColumnType, fdb.NewStringTabular(""), indexer.AbsentIndexerType),
+		fdb.NewColumn("balance", fdb.Float64ColumnType, fdb.NewFloat64Tabular(0.0), indexer.HashMapIndexerType),
+	}
+
+	if err := db.CreateTable("accounts", columns); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("✓ Table 'accounts' created")
+
+	table, err := db.GetTable("accounts")
 	if err != nil {
-		log.Fatalf("Error adding: %v", err)
+		log.Fatal(err)
 	}
 
-	err = indexer.Add(1, 101)
+	// Insert sample data
+	accounts := []map[string]any{
+		{"id": int32(1), "name": "Alice", "balance": float64(1000.50)},
+		{"id": int32(2), "name": "Bob", "balance": float64(2500.75)},
+		{"id": int32(3), "name": "Charlie", "balance": float64(750.25)},
+	}
+
+	fmt.Println("\n📝 Inserting accounts:")
+	for _, acc := range accounts {
+		if err := table.InsertRow(acc); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("✓ Added: ID=%v, Name=%v, Balance=$%.2f\n",
+			acc["id"], acc["name"], acc["balance"])
+	}
+
+	// Read data
+	fmt.Println("\n📖 Reading accounts:")
+	for i := 0; i < len(accounts); i++ {
+		row, err := table.GetRow(i)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Row %d: ID=%v, Name=%v, Balance=$%.2f\n",
+			i, row["id"], row["name"], row["balance"])
+	}
+
+	// Update data
+	fmt.Println("\n📊 Updating balance for first account:")
+	updateData := map[string]any{"balance": float64(1500.00)}
+	if err := table.UpdateRow(0, updateData); err != nil {
+		log.Fatal(err)
+	}
+
+	// Read updated data
+	row, err := table.GetRow(0)
 	if err != nil {
-		log.Fatalf("Error adding: %v", err)
+		log.Fatal(err)
 	}
-
-	ptrs, notFound := indexer.Find(1)
-	if notFound {
-		fmt.Println("Value not found")
-	} else {
-		fmt.Printf("Found pointers for 1: %v\n", ptrs)
-	}
-
-	err = indexer.Update(1, 1, 100)
-	if err != nil {
-		log.Fatalf("Error updating: %v", err)
-	}
-
-	ptrs, notFound = indexer.Find(2)
-	if notFound {
-		fmt.Println("Value not found")
-	} else {
-		fmt.Printf("Found pointers for 2: %v\n", ptrs)
-	}
-
-	err = indexer.Delete(2, 100)
-	if err != nil {
-		fmt.Printf("Error deleting: %v\n", err)
-	}
-
-	_, notFound = indexer.Find(2)
-	if notFound {
-		fmt.Println("Value not found")
-	}
+	fmt.Printf("✓ Updated: ID=%v, Name=%v, Balance=$%.2f\n",
+		row["id"], row["name"], row["balance"])
 }

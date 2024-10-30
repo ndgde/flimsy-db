@@ -49,11 +49,13 @@ func (h *HashMapIndexer[K]) Delete(val K, ptr int) error {
 		return errors.New("pointer not exists")
 	}
 
-	for i, p := range h.store[val] {
+	ptrs := h.store[val]
+	for i, p := range ptrs {
 		if p == ptr {
-			h.store[val] = append(h.store[val][:i], h.store[val][i+1:]...)
-			if len(h.store[val]) == 0 {
+			if len(ptrs) == 1 {
 				delete(h.store, val)
+			} else {
+				h.store[val] = append(ptrs[:i], ptrs[i+1:]...)
 			}
 			return nil
 		}
@@ -67,23 +69,48 @@ func (h *HashMapIndexer[K]) Update(oldVal K, newVal K, ptr int) error {
 		return nil
 	}
 
-	if err := h.Delete(oldVal, ptr); err != nil {
-		return err
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if !h.valExists(oldVal) {
+		return errors.New("old value not found")
 	}
 
-	if err := h.Add(newVal, ptr); err != nil {
-		return err
+	oldPtrs := h.store[oldVal]
+	found := false
+	for i, p := range oldPtrs {
+		if p == ptr {
+			if len(oldPtrs) == 1 {
+				delete(h.store, oldVal)
+			} else {
+				h.store[oldVal] = append(oldPtrs[:i], oldPtrs[i+1:]...)
+			}
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errors.New("pointer not exists")
+	}
+
+	if h.valExists(newVal) {
+		h.store[newVal] = append(h.store[newVal], ptr)
+	} else {
+		h.store[newVal] = []int{ptr}
 	}
 
 	return nil
 }
 
-func (h *HashMapIndexer[K]) Find(val K) ([]int, bool) { /* returns indexes and empty var ot type bool */
+func (h *HashMapIndexer[K]) Find(val K) ([]int, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	if h.valExists(val) {
-		return h.store[val], false
+		result := make([]int, len(h.store[val]))
+		copy(result, h.store[val])
+		return result, false
 	}
 
 	return []int{}, true

@@ -24,7 +24,8 @@ type Indexer[T Indexable[T]] interface {
 type IndexerType int
 
 const (
-	HashMapIndexerType IndexerType = iota
+	AbsentIndexerType IndexerType = iota
+	HashMapIndexerType
 )
 
 func NewIndexer[T Indexable[T]](indexerType IndexerType) Indexer[T] {
