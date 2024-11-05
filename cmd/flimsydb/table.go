@@ -3,9 +3,11 @@ package flimsydb
 import (
 	"fmt"
 	"sync"
+
+	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
 )
 
-type Row []Blob
+type Row []cm.Blob
 
 type Table struct {
 	mu          sync.RWMutex
@@ -34,12 +36,12 @@ func (t *Table) validateTypes(vals map[string]any) error {
 	for colName, colVal := range vals {
 		colIndex, exists := t.ColumnIndex[colName]
 		if !exists {
-			return fmt.Errorf("column '%s': %w", colName, ErrColumnNotFound)
+			return fmt.Errorf("column '%s': %w", colName, cm.ErrColumnNotFound)
 		}
 
 		col := t.Columns[colIndex]
 		if err := validateType(colVal, col.Type); err != nil {
-			return fmt.Errorf("column '%s': %w", col.Name, ErrTypeMismatch)
+			return fmt.Errorf("column '%s': %w", col.Name, cm.ErrTypeMismatch)
 		}
 	}
 
@@ -51,7 +53,7 @@ func (t *Table) indexInBounds(index int) error {
 	defer t.mu.RUnlock()
 
 	if index < 0 || index >= len(t.Rows) {
-		return ErrIndexOutOfBounds
+		return cm.ErrIndexOutOfBounds
 	}
 
 	return nil
@@ -68,7 +70,7 @@ func (t *Table) InsertRow(values map[string]any) error {
 	for i, col := range t.Columns {
 		value, exists := values[col.Name]
 
-		var blobValue Blob
+		var blobValue cm.Blob
 		var err error
 		if !exists {
 			blobValue = col.Default
@@ -76,7 +78,7 @@ func (t *Table) InsertRow(values map[string]any) error {
 			blobValue, err = Serialize(col.Type, value)
 			if err != nil {
 				t.mu.RUnlock()
-				return fmt.Errorf("serialization failed: %w", ErrInvalidData)
+				return fmt.Errorf("serialization failed: %w", cm.ErrInvalidData)
 			}
 		}
 
@@ -125,7 +127,7 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 		blobValue, err := Serialize(col.Type, newValue)
 		if err != nil {
 			t.mu.RUnlock()
-			return fmt.Errorf("serialization failed: %w", ErrInvalidData)
+			return fmt.Errorf("serialization failed: %w", cm.ErrInvalidData)
 		}
 
 		row[colIndex] = blobValue

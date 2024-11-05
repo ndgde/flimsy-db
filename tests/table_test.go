@@ -3,21 +3,23 @@ package tests
 import (
 	"testing"
 
-	"github.com/ndgde/flimsy-db/cmd/flimsydb"
+	flimsydb "github.com/ndgde/flimsy-db/cmd/flimsydb"
+	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
+	"github.com/ndgde/flimsy-db/cmd/flimsydb/indexer"
 )
 
 func TestTableCreation(t *testing.T) {
-	col, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
+	col, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column: %v", err)
 	}
 
-	col2, err := flimsydb.NewColumn("name", flimsydb.StringTType, "")
+	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column 'name': %v", err)
 	}
 
-	col3, err := flimsydb.NewColumn("score", flimsydb.Float64TType, float64(0))
+	col3, err := flimsydb.NewColumn("score", cm.Float64TType, float64(0), indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column 'score': %v", err)
 	}
@@ -47,12 +49,12 @@ func TestTableCreation(t *testing.T) {
 }
 
 func TestInsertRow(t *testing.T) {
-	col1, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
+	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column 'id': %v", err)
 	}
 
-	col2, err := flimsydb.NewColumn("name", flimsydb.StringTType, "")
+	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column 'name': %v", err)
 	}
@@ -102,12 +104,12 @@ func TestInsertRow(t *testing.T) {
 }
 
 func TestUpdateAndGetRow(t *testing.T) {
-	col1, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
+	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column 'id': %v", err)
 	}
 
-	col2, err := flimsydb.NewColumn("name", flimsydb.StringTType, "")
+	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column 'name': %v", err)
 	}
@@ -128,12 +130,12 @@ func TestUpdateAndGetRow(t *testing.T) {
 		t.Fatalf("Error getting row: %v", err)
 	}
 
-	id, err := flimsydb.Deserialize(flimsydb.Int32TType, row[0])
+	id, err := flimsydb.Deserialize(cm.Int32TType, row[0])
 	if err != nil || id.(int32) != 1 {
 		t.Errorf("Expected id=1, got %v", id)
 	}
 
-	name, err := flimsydb.Deserialize(flimsydb.StringTType, row[1])
+	name, err := flimsydb.Deserialize(cm.StringTType, row[1])
 	if err != nil || name.(string) != "Initial" {
 		t.Errorf("Expected name='Initial', got %v", name)
 	}
@@ -150,14 +152,14 @@ func TestUpdateAndGetRow(t *testing.T) {
 		t.Fatalf("Error getting updated row: %v", err)
 	}
 
-	updatedName, err := flimsydb.Deserialize(flimsydb.StringTType, updatedRow[1])
+	updatedName, err := flimsydb.Deserialize(cm.StringTType, updatedRow[1])
 	if err != nil || updatedName.(string) != "Updated" {
 		t.Errorf("Expected name='Updated', got %v", updatedName)
 	}
 }
 
 func TestDeleteRow(t *testing.T) {
-	col1, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
+	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
 	if err != nil {
 		t.Fatalf("Failed to create column 'id': %v", err)
 	}
@@ -184,7 +186,7 @@ func TestDeleteRow(t *testing.T) {
 		t.Fatalf("Error getting first row: %v", err)
 	}
 
-	id0, err := flimsydb.Deserialize(flimsydb.Int32TType, row0[0])
+	id0, err := flimsydb.Deserialize(cm.Int32TType, row0[0])
 	if err != nil || id0.(int32) != 0 {
 		t.Errorf("Expected id=0, got %v", id0)
 	}
@@ -194,7 +196,7 @@ func TestDeleteRow(t *testing.T) {
 		t.Fatalf("Error getting second row: %v", err)
 	}
 
-	id2, err := flimsydb.Deserialize(flimsydb.Int32TType, row1[0])
+	id2, err := flimsydb.Deserialize(cm.Int32TType, row1[0])
 	if err != nil || id2.(int32) != 2 {
 		t.Errorf("Expected id=2, got %v", id2)
 	}

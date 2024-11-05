@@ -1,6 +1,8 @@
 package indexer
 
-import fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
+import (
+	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
+)
 
 type Indexer interface {
 	Add(val []byte, ptr int) error
@@ -17,7 +19,7 @@ const (
 	HashMapIndexerType
 )
 
-func NewIndexer(indexerType IndexerType, valueType fdb.TabularType) Indexer {
+func NewIndexer(indexerType IndexerType, valueType cm.TabularType) Indexer {
 	switch indexerType {
 	case HashMapIndexerType:
 		return NewHashMapIndexer(valueType)

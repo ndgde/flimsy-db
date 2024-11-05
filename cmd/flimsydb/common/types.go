@@ -1,4 +1,4 @@
-package flimsydb
+package common
 
 type TabularType int
 
@@ -8,4 +8,4 @@ const (
 	Float64TType
 )
 
-type Blob []byte /* Binary Large OBject */
+type Blob []byte

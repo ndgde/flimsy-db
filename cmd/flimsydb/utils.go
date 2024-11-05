@@ -7,20 +7,22 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
 )
 
-func validateType(val any, expType TabularType) error {
+func validateType(val any, expType cm.TabularType) error {
 	var isValid bool
 	var typeName string
 
 	switch expType {
-	case StringTType:
+	case cm.StringTType:
 		_, isValid = val.(string)
 		typeName = "string"
-	case Int32TType:
+	case cm.Int32TType:
 		_, isValid = val.(int32)
 		typeName = "int32"
-	case Float64TType:
+	case cm.Float64TType:
 		_, isValid = val.(float64)
 		typeName = "float64"
 	default:
@@ -33,11 +35,11 @@ func validateType(val any, expType TabularType) error {
 	return nil
 }
 
-func Serialize(valueType TabularType, value any) (Blob, error) {
+func Serialize(valueType cm.TabularType, value any) (cm.Blob, error) {
 	buf := new(bytes.Buffer)
 
 	switch valueType {
-	case Int32TType:
+	case cm.Int32TType:
 		v, ok := value.(int32)
 		if !ok {
 			return nil, errors.New("value does not match int32 type")
@@ -46,7 +48,7 @@ func Serialize(valueType TabularType, value any) (Blob, error) {
 			return nil, err
 		}
 
-	case Float64TType:
+	case cm.Float64TType:
 		v, ok := value.(float64)
 		if !ok {
 			return nil, errors.New("value does not match float64 type")
@@ -55,7 +57,7 @@ func Serialize(valueType TabularType, value any) (Blob, error) {
 			return nil, err
 		}
 
-	case StringTType:
+	case cm.StringTType:
 		v, ok := value.(string)
 		if !ok {
 			return nil, errors.New("value does not match string type")
@@ -76,25 +78,25 @@ func Serialize(valueType TabularType, value any) (Blob, error) {
 	return buf.Bytes(), nil
 }
 
-func Deserialize(valueType TabularType, value Blob) (any, error) {
+func Deserialize(valueType cm.TabularType, value cm.Blob) (any, error) {
 	buf := bytes.NewReader(value)
 
 	switch valueType {
-	case Int32TType:
+	case cm.Int32TType:
 		var v int32
 		if err := binary.Read(buf, binary.LittleEndian, &v); err != nil {
 			return nil, err
 		}
 		return v, nil
 
-	case Float64TType:
+	case cm.Float64TType:
 		var v float64
 		if err := binary.Read(buf, binary.LittleEndian, &v); err != nil {
 			return nil, err
 		}
 		return v, nil
 
-	case StringTType:
+	case cm.StringTType:
 		var strLen int32
 		if err := binary.Read(buf, binary.LittleEndian, &strLen); err != nil {
 			return nil, err
@@ -170,9 +172,9 @@ func PrintTable(t *Table) {
 			}
 
 			switch col.Type {
-			case Float64TType:
+			case cm.Float64TType:
 				fmt.Printf(" %*.*f |", widths[i], 2, value)
-			case Int32TType:
+			case cm.Int32TType:
 				fmt.Printf(" %*v |", widths[i], value)
 			default:
 				fmt.Printf(" %-*v |", widths[i], value)

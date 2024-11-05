@@ -1,24 +1,22 @@
-package indexer
+package common
 
 import (
 	"bytes"
 	"encoding/binary"
 	"math"
-
-	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
 )
 
 type CompareFunc func(a, b []byte) int
 
-func GetCompareFunc(typ fdb.TabularType) CompareFunc {
+func GetCompareFunc(typ TabularType) CompareFunc {
 	switch typ {
-	case fdb.Int32TType:
+	case Int32TType:
 		return compareInt32
 	// case fdb.Int64TType:
 	// 	return compareInt64
-	case fdb.Float64TType:
+	case Float64TType:
 		return compareFloat64
-	case fdb.StringTType:
+	case StringTType:
 		return compareString
 	// case fdb.BoolTType:
 	// 	return compareBool

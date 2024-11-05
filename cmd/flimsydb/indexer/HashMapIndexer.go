@@ -3,19 +3,19 @@ package indexer
 import (
 	"sync"
 
-	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
+	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
 )
 
 type HashMapIndexer struct {
 	mu          sync.RWMutex
 	store       map[string][]int
-	compareFunc CompareFunc
+	compareFunc cm.CompareFunc
 }
 
-func NewHashMapIndexer(valueType fdb.TabularType) *HashMapIndexer {
+func NewHashMapIndexer(valueType cm.TabularType) *HashMapIndexer {
 	return &HashMapIndexer{
 		store:       make(map[string][]int),
-		compareFunc: GetCompareFunc(valueType),
+		compareFunc: cm.GetCompareFunc(valueType),
 	}
 }
 
@@ -37,7 +37,7 @@ func (h *HashMapIndexer) Add(val []byte, ptr int) error {
 		for _, p := range ptrs {
 			if p == ptr {
 				h.mu.RUnlock()
-				return fdb.ErrIndexExists
+				return cm.ErrIndexExists
 			}
 		}
 	}
@@ -49,7 +49,7 @@ func (h *HashMapIndexer) Add(val []byte, ptr int) error {
 	if ptrs, exists = h.valueExists(key); exists {
 		for _, p := range ptrs {
 			if p == ptr {
-				return fdb.ErrIndexExists
+				return cm.ErrIndexExists
 			}
 		}
 		h.store[key] = append(ptrs, ptr)
@@ -67,7 +67,7 @@ func (h *HashMapIndexer) Delete(val []byte, ptr int) error {
 	_, exists := h.valueExists(key)
 	if !exists {
 		h.mu.RUnlock()
-		return fdb.ErrIndexNotFound
+		return cm.ErrIndexNotFound
 	}
 	h.mu.RUnlock()
 
@@ -76,7 +76,7 @@ func (h *HashMapIndexer) Delete(val []byte, ptr int) error {
 
 	ptrs, exists := h.valueExists(key)
 	if !exists {
-		return fdb.ErrIndexNotFound
+		return cm.ErrIndexNotFound
 	}
 
 	for i, p := range ptrs {
@@ -90,11 +90,11 @@ func (h *HashMapIndexer) Delete(val []byte, ptr int) error {
 		}
 	}
 
-	return fdb.ErrIndexNotFound
+	return cm.ErrIndexNotFound
 }
 
 func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
-	if Equal(oldVal, newVal, h.compareFunc) {
+	if cm.Equal(oldVal, newVal, h.compareFunc) {
 		return nil
 	}
 
@@ -105,7 +105,7 @@ func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
 	_, exists := h.valueExists(oldKey)
 	if !exists {
 		h.mu.RUnlock()
-		return fdb.ErrIndexNotFound
+		return cm.ErrIndexNotFound
 	}
 	h.mu.RUnlock()
 
@@ -115,7 +115,7 @@ func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
 	var ptrs []int
 	ptrs, exists = h.valueExists(oldKey)
 	if !exists {
-		return fdb.ErrIndexNotFound
+		return cm.ErrIndexNotFound
 	}
 
 	found := false
@@ -132,7 +132,7 @@ func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
 	}
 
 	if !found {
-		return fdb.ErrIndexNotFound
+		return cm.ErrIndexNotFound
 	}
 
 	if newPtrs, exists := h.store[newKey]; exists {
@@ -166,7 +166,7 @@ func (h *HashMapIndexer) FindInRange(min []byte, max []byte) ([]int, bool) {
 	var result []int
 	for key, ptrs := range h.store {
 		keyBytes := []byte(key)
-		if LessOrEqual(keyBytes, max, h.compareFunc) && GreaterOrEqual(keyBytes, min, h.compareFunc) {
+		if cm.LessOrEqual(keyBytes, max, h.compareFunc) && cm.GreaterOrEqual(keyBytes, min, h.compareFunc) {
 			result = append(result, ptrs...)
 		}
 	}

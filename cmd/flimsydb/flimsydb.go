@@ -3,6 +3,8 @@ package flimsydb
 import (
 	"fmt"
 	"sync"
+
+	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
 )
 
 type FlimsyDB struct {
@@ -21,7 +23,7 @@ func (db *FlimsyDB) CreateTable(name string, columns []*Column) error {
 	defer db.mu.Unlock()
 
 	if db.tableExists(name) {
-		return ErrTableExists
+		return cm.ErrTableExists
 	}
 
 	db.tables[name] = NewTable(columns)
@@ -34,7 +36,7 @@ func (db *FlimsyDB) GetTable(name string) (*Table, error) {
 
 	table, exists := db.tables[name]
 	if !exists {
-		return nil, ErrTableNotFound
+		return nil, cm.ErrTableNotFound
 	}
 	return table, nil
 }
@@ -44,7 +46,7 @@ func (db *FlimsyDB) DeleteTable(name string) error {
 	defer db.mu.Unlock()
 
 	if !db.tableExists(name) {
-		return ErrTableNotFound
+		return cm.ErrTableNotFound
 	}
 	delete(db.tables, name)
 	return nil

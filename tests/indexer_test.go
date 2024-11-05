@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ndgde/flimsy-db/cmd/flimsydb"
+	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
 	"github.com/ndgde/flimsy-db/cmd/flimsydb/indexer"
 )
 
@@ -15,21 +15,21 @@ func TestIndexerCreation(t *testing.T) {
 	testCases := []struct {
 		name       string
 		indexType  indexer.IndexerType
-		valueType  flimsydb.TabularType
+		valueType  cm.TabularType
 		wantNil    bool
 		indexerStr string
 	}{
 		{
 			name:       "Create HashMap indexer",
 			indexType:  indexer.HashMapIndexerType,
-			valueType:  flimsydb.Int32TType,
+			valueType:  cm.Int32TType,
 			wantNil:    false,
 			indexerStr: "*indexer.HashMapIndexer",
 		},
 		{
 			name:      "Create with invalid type",
 			indexType: indexer.AbsentIndexerType,
-			valueType: flimsydb.Int32TType,
+			valueType: cm.Int32TType,
 			wantNil:   true,
 		},
 	}
@@ -51,7 +51,7 @@ func TestIndexerCreation(t *testing.T) {
 }
 
 func TestHashMapIndexerOperations(t *testing.T) {
-	idx := indexer.NewHashMapIndexer(flimsydb.StringTType)
+	idx := indexer.NewHashMapIndexer(cm.StringTType)
 
 	// Test data
 	val1 := []byte("test1")
@@ -66,7 +66,7 @@ func TestHashMapIndexerOperations(t *testing.T) {
 		}
 
 		// Try to add duplicate
-		if err := idx.Add(val1, 1); err != flimsydb.ErrIndexExists {
+		if err := idx.Add(val1, 1); err != cm.ErrIndexExists {
 			t.Errorf("Expected ErrIndexExists when adding duplicate, got %v", err)
 		}
 
@@ -128,7 +128,7 @@ func TestHashMapIndexerOperations(t *testing.T) {
 		}
 
 		// Update non-existing value
-		if err := idx.Update([]byte("nonexistent"), val3, 1); err != flimsydb.ErrIndexNotFound {
+		if err := idx.Update([]byte("nonexistent"), val3, 1); err != cm.ErrIndexNotFound {
 			t.Errorf("Expected ErrIndexNotFound when updating non-existing value, got %v", err)
 		}
 	})
@@ -141,19 +141,19 @@ func TestHashMapIndexerOperations(t *testing.T) {
 		}
 
 		// Try to delete same value again
-		if err := idx.Delete(val3, 1); err != flimsydb.ErrIndexNotFound {
+		if err := idx.Delete(val3, 1); err != cm.ErrIndexNotFound {
 			t.Errorf("Expected ErrIndexNotFound when deleting non-existing value, got %v", err)
 		}
 
 		// Delete non-existing value
-		if err := idx.Delete([]byte("nonexistent"), 1); err != flimsydb.ErrIndexNotFound {
+		if err := idx.Delete([]byte("nonexistent"), 1); err != cm.ErrIndexNotFound {
 			t.Errorf("Expected ErrIndexNotFound when deleting non-existing value, got %v", err)
 		}
 	})
 }
 
 func TestFindInRange(t *testing.T) {
-	idx := indexer.NewHashMapIndexer(flimsydb.StringTType)
+	idx := indexer.NewHashMapIndexer(cm.StringTType)
 
 	// Add test data
 	testData := []struct {
@@ -236,7 +236,7 @@ func TestFindInRange(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	idx := indexer.NewHashMapIndexer(flimsydb.StringTType)
+	idx := indexer.NewHashMapIndexer(cm.StringTType)
 	const goroutines = 10
 	const operationsPerGoroutine = 100
 
@@ -252,7 +252,7 @@ func TestConcurrentAccess(t *testing.T) {
 				newVal := []byte(fmt.Sprintf("new%d-%d", id, j))
 
 				// Test Add
-				if err := idx.Add(val, j); err != nil && err != flimsydb.ErrIndexExists {
+				if err := idx.Add(val, j); err != nil && err != cm.ErrIndexExists {
 					t.Errorf("Concurrent Add failed: %v", err)
 				}
 
@@ -262,12 +262,12 @@ func TestConcurrentAccess(t *testing.T) {
 				}
 
 				// Test Update
-				if err := idx.Update(val, newVal, j); err != nil && err != flimsydb.ErrIndexNotFound {
+				if err := idx.Update(val, newVal, j); err != nil && err != cm.ErrIndexNotFound {
 					t.Errorf("Concurrent Update failed: %v", err)
 				}
 
 				// Test Delete
-				if err := idx.Delete(newVal, j); err != nil && err != flimsydb.ErrIndexNotFound {
+				if err := idx.Delete(newVal, j); err != nil && err != cm.ErrIndexNotFound {
 					t.Errorf("Concurrent Delete failed: %v", err)
 				}
 			}

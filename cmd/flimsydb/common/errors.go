@@ -1,4 +1,4 @@
-package flimsydb
+package common
 
 import "errors"
 
