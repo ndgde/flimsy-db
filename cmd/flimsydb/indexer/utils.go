@@ -1,25 +1,100 @@
 package indexer
 
-type IndexableInt32 int32
+import (
+	"bytes"
+	"encoding/binary"
+	"math"
 
-func (a IndexableInt32) Equal(other IndexableInt32) bool          { return a == other }
-func (a IndexableInt32) Less(other IndexableInt32) bool           { return a < other }
-func (a IndexableInt32) LessOrEqual(other IndexableInt32) bool    { return a <= other }
-func (a IndexableInt32) Greater(other IndexableInt32) bool        { return a > other }
-func (a IndexableInt32) GreaterOrEqual(other IndexableInt32) bool { return a >= other }
+	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
+)
 
-type IndexableFloat64 float64
+type CompareFunc func(a, b []byte) int
 
-func (a IndexableFloat64) Equal(other IndexableFloat64) bool          { return a == other }
-func (a IndexableFloat64) Less(other IndexableFloat64) bool           { return a < other }
-func (a IndexableFloat64) LessOrEqual(other IndexableFloat64) bool    { return a <= other }
-func (a IndexableFloat64) Greater(other IndexableFloat64) bool        { return a > other }
-func (a IndexableFloat64) GreaterOrEqual(other IndexableFloat64) bool { return a >= other }
+func GetCompareFunc(typ fdb.TabularType) CompareFunc {
+	switch typ {
+	case fdb.Int32TType:
+		return compareInt32
+	// case fdb.Int64TType:
+	// 	return compareInt64
+	case fdb.Float64TType:
+		return compareFloat64
+	case fdb.StringTType:
+		return compareString
+	// case fdb.BoolTType:
+	// 	return compareBool
+	default:
+		return nil
+	}
+}
 
-type IndexableString string
+func compareInt32(a, b []byte) int {
+	valA := int32(binary.BigEndian.Uint32(a))
+	valB := int32(binary.BigEndian.Uint32(b))
+	if valA < valB {
+		return -1
+	}
+	if valA > valB {
+		return 1
+	}
+	return 0
+}
 
-func (a IndexableString) Equal(other IndexableString) bool          { return a == other }
-func (a IndexableString) Less(other IndexableString) bool           { return a < other }
-func (a IndexableString) LessOrEqual(other IndexableString) bool    { return a <= other }
-func (a IndexableString) Greater(other IndexableString) bool        { return a > other }
-func (a IndexableString) GreaterOrEqual(other IndexableString) bool { return a >= other }
+func compareInt64(a, b []byte) int {
+	valA := int64(binary.BigEndian.Uint64(a))
+	valB := int64(binary.BigEndian.Uint64(b))
+	if valA < valB {
+		return -1
+	}
+	if valA > valB {
+		return 1
+	}
+	return 0
+}
+
+func compareFloat64(a, b []byte) int {
+	valA := math.Float64frombits(binary.BigEndian.Uint64(a))
+	valB := math.Float64frombits(binary.BigEndian.Uint64(b))
+	if valA < valB {
+		return -1
+	}
+	if valA > valB {
+		return 1
+	}
+	return 0
+}
+
+func compareString(a, b []byte) int {
+	return bytes.Compare(a, b)
+}
+
+func compareBool(a, b []byte) int {
+	valA := a[0] != 0
+	valB := b[0] != 0
+	if valA == valB {
+		return 0
+	}
+	if !valA && valB {
+		return -1
+	}
+	return 1
+}
+
+func Equal(a, b []byte, compareFunc CompareFunc) bool {
+	return compareFunc(a, b) == 0
+}
+
+func Less(a, b []byte, compareFunc CompareFunc) bool {
+	return compareFunc(a, b) < 0
+}
+
+func LessOrEqual(a, b []byte, compareFunc CompareFunc) bool {
+	return compareFunc(a, b) <= 0
+}
+
+func Greater(a, b []byte, compareFunc CompareFunc) bool {
+	return compareFunc(a, b) > 0
+}
+
+func GreaterOrEqual(a, b []byte, compareFunc CompareFunc) bool {
+	return compareFunc(a, b) >= 0
+}

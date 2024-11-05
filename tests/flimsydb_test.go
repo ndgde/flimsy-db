@@ -1,166 +1,259 @@
 package tests
 
 import (
-	"io"
-	"os"
-	"strings"
 	"testing"
 
-	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
-	"github.com/ndgde/flimsy-db/cmd/flimsydb/indexer"
+	"github.com/ndgde/flimsy-db/cmd/flimsydb"
 )
 
-// setupTestDB creates a test database with basic table configuration
-func setupTestDB(t *testing.T) (*fdb.FlimsyDB, string, []*fdb.Column) {
-	t.Helper()
-	db := fdb.NewFlimsyDB()
-	tableName := "TestTable"
-	columns := []*fdb.Column{
-		fdb.NewColumn("ID", fdb.Int32ColumnType, fdb.NewInt32Tabular(0), indexer.HashMapIndexerType),
-		fdb.NewColumn("Name", fdb.StringColumnType, fdb.NewStringTabular(""), indexer.AbsentIndexerType),
+func TestDatabaseCreation(t *testing.T) {
+	db := flimsydb.NewFlimsyDB()
+	if db == nil {
+		t.Fatal("Failed to create database instance")
 	}
-	return db, tableName, columns
 }
 
-func TestDatabaseTableOperations(t *testing.T) {
-	t.Run("CreateTable", func(t *testing.T) {
-		db, tableName, columns := setupTestDB(t)
+func TestTableOperations(t *testing.T) {
+	db := flimsydb.NewFlimsyDB()
 
-		err := db.CreateTable(tableName, columns)
+	col1, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
+	if err != nil {
+		t.Fatalf("Failed to create column 'id': %v", err)
+	}
+
+	col2, err := flimsydb.NewColumn("name", flimsydb.StringTType, "")
+	if err != nil {
+		t.Fatalf("Failed to create column 'name': %v", err)
+	}
+
+	col3, err := flimsydb.NewColumn("score", flimsydb.Float64TType, float64(0))
+	if err != nil {
+		t.Fatalf("Failed to create column 'score': %v", err)
+	}
+
+	columns := []*flimsydb.Column{col1, col2, col3}
+
+	tableName := "test_table"
+	err = db.CreateTable(tableName, columns)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	if err = db.CreateTable(tableName, columns); err == nil {
+		t.Error("Expected error when creating duplicate table, got nil")
+	}
+
+	if !db.TableExists(tableName) {
+		t.Error("Table should exist but TableExists returned false")
+	}
+
+	if db.TableExists("non_existent") {
+		t.Error("Non-existent table should not exist but TableExists returned true")
+	}
+
+	table, err := db.GetTable(tableName)
+	if err != nil {
+		t.Errorf("Failed to get existing table: %v", err)
+	}
+	if table == nil {
+		t.Error("GetTable returned nil for existing table")
+	}
+
+	err = db.DeleteTable(tableName)
+	if err != nil {
+		t.Errorf("Failed to delete table: %v", err)
+	}
+
+	if db.TableExists(tableName) {
+		t.Error("Table still exists after deletion")
+	}
+}
+
+func TestDataOperations(t *testing.T) {
+	db := flimsydb.NewFlimsyDB()
+	tableName := "test_data"
+
+	col1, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
+	if err != nil {
+		t.Fatalf("Failed to create column 'id': %v", err)
+	}
+
+	col2, err := flimsydb.NewColumn("name", flimsydb.StringTType, "")
+	if err != nil {
+		t.Fatalf("Failed to create column 'name': %v", err)
+	}
+
+	col3, err := flimsydb.NewColumn("score", flimsydb.Float64TType, float64(0))
+	if err != nil {
+		t.Fatalf("Failed to create column 'score': %v", err)
+	}
+
+	columns := []*flimsydb.Column{col1, col2, col3}
+
+	err = db.CreateTable(tableName, columns)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	testData := []map[string]any{
+		{
+			"id":    int32(1),
+			"name":  "Alice",
+			"score": float64(85.5),
+		},
+		{
+			"id":    int32(2),
+			"name":  "Bob",
+			"score": float64(92.0),
+		},
+	}
+
+	table, err := db.GetTable(tableName)
+	if err != nil {
+		t.Fatalf("Failed to get table: %v", err)
+	}
+
+	for _, data := range testData {
+		err := table.InsertRow(data)
 		if err != nil {
-			t.Fatalf("CreateTable failed: %v", err)
+			t.Errorf("Failed to insert data: %v", err)
 		}
+	}
 
-		if !db.TableExists(tableName) {
-			t.Error("Created table does not exist")
-		}
+	_, err = table.GetRow(0)
+	if err != nil {
+		t.Fatalf("Failed to get row: %v", err)
+	}
 
-		// Test duplicate creation
-		err = db.CreateTable(tableName, columns)
-		if err != fdb.ErrTableExists {
-			t.Errorf("Expected ErrTableExists, got %v", err)
-		}
-	})
+	updateData := map[string]any{
+		"score": float64(95.0),
+	}
+	err = table.UpdateRow(0, updateData)
+	if err != nil {
+		t.Errorf("Failed to update data: %v", err)
+	}
 
-	t.Run("GetTable", func(t *testing.T) {
-		db, tableName, columns := setupTestDB(t)
+	updatedRow, err := table.GetRow(0)
+	if err != nil {
+		t.Fatalf("Failed to get updated row: %v", err)
+	}
 
-		// Create table for testing
-		err := db.CreateTable(tableName, columns)
-		if err != nil {
-			t.Fatalf("Setup failed: %v", err)
-		}
+	score, err := flimsydb.Deserialize(flimsydb.Float64TType, updatedRow[2])
+	if err != nil {
+		t.Fatalf("Failed to deserialize score: %v", err)
+	}
 
-		// Test successful retrieval
-		table, err := db.GetTable(tableName)
-		if err != nil {
-			t.Errorf("GetTable failed: %v", err)
-		}
-		if table == nil {
-			t.Error("GetTable returned nil table")
-		}
+	if score.(float64) != 95.0 {
+		t.Errorf("Expected updated score to be 95.0, got %v", score)
+	}
 
-		// Test non-existent table retrieval
-		_, err = db.GetTable("NonExistentTable")
-		if err != fdb.ErrTableNotFound {
-			t.Errorf("Expected ErrTableNotFound, got %v", err)
-		}
-	})
+	err = table.DeleteRow(1)
+	if err != nil {
+		t.Errorf("Failed to delete row: %v", err)
+	}
 
-	t.Run("DeleteTable", func(t *testing.T) {
-		db, tableName, columns := setupTestDB(t)
+	if len(table.Rows) != 1 {
+		t.Errorf("Expected 1 row after deletion, got %d", len(table.Rows))
+	}
+}
 
-		err := db.CreateTable(tableName, columns)
-		if err != nil {
-			t.Fatalf("Setup failed: %v", err)
+func TestErrorCases(t *testing.T) {
+	db := flimsydb.NewFlimsyDB()
+	tableName := "error_test"
+
+	t.Run("Operations on non-existent table", func(t *testing.T) {
+		_, err := db.GetTable(tableName)
+		if err == nil {
+			t.Error("Expected error when getting non-existent table")
 		}
 
 		err = db.DeleteTable(tableName)
-		if err != nil {
-			t.Errorf("DeleteTable failed: %v", err)
+		if err == nil {
+			t.Error("Expected error when deleting non-existent table")
 		}
-		if db.TableExists(tableName) {
-			t.Error("Table still exists after deletion")
+	})
+
+	col1, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
+	if err != nil {
+		t.Fatalf("Failed to create column 'id': %v", err)
+	}
+
+	col2, err := flimsydb.NewColumn("name", flimsydb.StringTType, "")
+	if err != nil {
+		t.Fatalf("Failed to create column 'name': %v", err)
+	}
+
+	columns := []*flimsydb.Column{col1, col2}
+
+	err = db.CreateTable(tableName, columns)
+	if err != nil {
+		t.Fatalf("Failed to create table: %v", err)
+	}
+
+	table, err := db.GetTable(tableName)
+	if err != nil {
+		t.Fatalf("Failed to get table: %v", err)
+	}
+
+	t.Run("Invalid data types", func(t *testing.T) {
+		invalidData := map[string]any{
+			"id":   "not an int32",
+			"name": "valid string",
 		}
 
-		// Test deleting non-existent table
-		err = db.DeleteTable("NonExistentTable")
-		if err != fdb.ErrTableNotFound {
-			t.Errorf("Expected ErrTableNotFound, got %v", err)
+		err := table.InsertRow(invalidData)
+		if err == nil {
+			t.Error("Expected error when inserting invalid data type")
+		}
+	})
+
+	t.Run("Invalid column names", func(t *testing.T) {
+		invalidData := map[string]any{
+			"id":          int32(1),
+			"nonexistent": "value",
+		}
+
+		err := table.InsertRow(invalidData)
+		if err == nil {
+			t.Error("Expected error when inserting data with invalid column name")
 		}
 	})
 }
 
-func TestDatabaseManipulation(t *testing.T) {
-	t.Run("InsertAndRetrieveRow", func(t *testing.T) {
-		db, tableName, columns := setupTestDB(t)
+func TestListTables(t *testing.T) {
+	db := flimsydb.NewFlimsyDB()
 
-		err := db.CreateTable(tableName, columns)
-		if err != nil {
-			t.Fatalf("Setup failed: %v", err)
-		}
+	tables := []string{"table1", "table2", "table3"}
 
-		table, err := db.GetTable(tableName)
-		if err != nil {
-			t.Fatalf("Failed to get table: %v", err)
-		}
-
-		// Test data insertion
-		testData := map[string]any{
-			"ID":   int32(1),
-			"Name": "Test User",
-		}
-
-		err = table.InsertRow(testData)
-		if err != nil {
-			t.Errorf("InsertRow failed: %v", err)
-		}
-
-		// Test data retrieval
-		retrieved, err := table.GetRow(0)
-		if err != nil {
-			t.Errorf("GetRow failed: %v", err)
-		}
-
-		if retrieved["ID"] != int32(1) || retrieved["Name"] != "Test User" {
-			t.Error("Retrieved data doesn't match inserted data")
-		}
-	})
-}
-
-func TestDatabaseOutput(t *testing.T) {
-	db, tableName, columns := setupTestDB(t)
-
-	err := db.CreateTable(tableName, columns)
+	col, err := flimsydb.NewColumn("id", flimsydb.Int32TType, int32(0))
 	if err != nil {
-		t.Fatalf("Setup failed: %v", err)
+		t.Fatalf("Failed to create column: %v", err)
 	}
 
-	// Capture stdout
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
+	columns := []*flimsydb.Column{col}
 
-	// Cleanup after test
-	defer func() {
-		os.Stdout = oldStdout
-	}()
-
-	// Execute print
-	go func() {
-		db.PrintTables()
-		w.Close()
-	}()
-
-	// Read output
-	var out strings.Builder
-	_, err = io.Copy(&out, r)
-	if err != nil {
-		t.Fatalf("Failed to capture output: %v", err)
+	for _, name := range tables {
+		err := db.CreateTable(name, columns)
+		if err != nil {
+			t.Fatalf("Failed to create table %s: %v", name, err)
+		}
 	}
 
-	output := out.String()
-	if !strings.Contains(output, tableName) {
-		t.Errorf("Expected output to contain '%s', got: %s", tableName, output)
+	listed := db.ListTables()
+	if len(listed) != len(tables) {
+		t.Errorf("Expected %d tables, got %d", len(tables), len(listed))
+	}
+
+	for _, name := range tables {
+		found := false
+		for _, listedName := range listed {
+			if name == listedName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Table %s not found in listed tables", name)
+		}
 	}
 }

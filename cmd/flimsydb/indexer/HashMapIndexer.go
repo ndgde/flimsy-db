@@ -1,89 +1,130 @@
 package indexer
 
 import (
-	"errors"
 	"sync"
+
+	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
 )
 
-type HashMapIndexer[K Indexable[K]] struct {
-	mu    sync.RWMutex
-	store map[K][]int
+type HashMapIndexer struct {
+	mu          sync.RWMutex
+	store       map[string][]int
+	compareFunc CompareFunc
 }
 
-func NewHashMapIndexer[K Indexable[K]]() *HashMapIndexer[K] {
-	return &HashMapIndexer[K]{
-		store: make(map[K][]int),
+func NewHashMapIndexer(valueType fdb.TabularType) *HashMapIndexer {
+	return &HashMapIndexer{
+		store:       make(map[string][]int),
+		compareFunc: GetCompareFunc(valueType),
 	}
 }
 
-func (h *HashMapIndexer[K]) valExists(val K) bool {
-	_, exists := h.store[val]
-	return exists
+func bytesToKey(b []byte) string {
+	return string(b)
 }
 
-func (h *HashMapIndexer[K]) Add(val K, ptr int) error {
+func (h *HashMapIndexer) valueExists(key string) ([]int, bool) {
+	ptrs, exists := h.store[key]
+	return ptrs, exists
+}
+
+func (h *HashMapIndexer) Add(val []byte, ptr int) error {
+	key := bytesToKey(val)
+
+	h.mu.RLock()
+	ptrs, exists := h.valueExists(key)
+	if exists {
+		for _, p := range ptrs {
+			if p == ptr {
+				h.mu.RUnlock()
+				return fdb.ErrIndexExists
+			}
+		}
+	}
+	h.mu.RUnlock()
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.valExists(val) {
-		for _, p := range h.store[val] {
+	if ptrs, exists = h.valueExists(key); exists {
+		for _, p := range ptrs {
 			if p == ptr {
-				return errors.New("index already exists")
+				return fdb.ErrIndexExists
 			}
 		}
-
-		h.store[val] = append(h.store[val], ptr)
-
+		h.store[key] = append(ptrs, ptr)
 	} else {
-		h.store[val] = []int{ptr}
+		h.store[key] = []int{ptr}
 	}
 
 	return nil
 }
 
-func (h *HashMapIndexer[K]) Delete(val K, ptr int) error {
+func (h *HashMapIndexer) Delete(val []byte, ptr int) error {
+	key := bytesToKey(val)
+
+	h.mu.RLock()
+	_, exists := h.valueExists(key)
+	if !exists {
+		h.mu.RUnlock()
+		return fdb.ErrIndexNotFound
+	}
+	h.mu.RUnlock()
+
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if !h.valExists(val) {
-		return errors.New("pointer not exists")
+	ptrs, exists := h.valueExists(key)
+	if !exists {
+		return fdb.ErrIndexNotFound
 	}
 
-	ptrs := h.store[val]
 	for i, p := range ptrs {
 		if p == ptr {
 			if len(ptrs) == 1 {
-				delete(h.store, val)
+				delete(h.store, key)
 			} else {
-				h.store[val] = append(ptrs[:i], ptrs[i+1:]...)
+				h.store[key] = append(ptrs[:i], ptrs[i+1:]...)
 			}
 			return nil
 		}
 	}
 
-	return errors.New("pointer not exists")
+	return fdb.ErrIndexNotFound
 }
 
-func (h *HashMapIndexer[K]) Update(oldVal K, newVal K, ptr int) error {
-	if newVal.Equal(oldVal) {
+func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
+	if Equal(oldVal, newVal, h.compareFunc) {
 		return nil
 	}
+
+	oldKey := bytesToKey(oldVal)
+	newKey := bytesToKey(newVal)
+
+	h.mu.RLock()
+	_, exists := h.valueExists(oldKey)
+	if !exists {
+		h.mu.RUnlock()
+		return fdb.ErrIndexNotFound
+	}
+	h.mu.RUnlock()
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if !h.valExists(oldVal) {
-		return errors.New("old value not found")
+	var ptrs []int
+	ptrs, exists = h.valueExists(oldKey)
+	if !exists {
+		return fdb.ErrIndexNotFound
 	}
 
-	oldPtrs := h.store[oldVal]
 	found := false
-	for i, p := range oldPtrs {
+	for i, p := range ptrs {
 		if p == ptr {
-			if len(oldPtrs) == 1 {
-				delete(h.store, oldVal)
+			if len(ptrs) == 1 {
+				delete(h.store, oldKey)
 			} else {
-				h.store[oldVal] = append(oldPtrs[:i], oldPtrs[i+1:]...)
+				h.store[oldKey] = append(ptrs[:i], ptrs[i+1:]...)
 			}
 			found = true
 			break
@@ -91,45 +132,48 @@ func (h *HashMapIndexer[K]) Update(oldVal K, newVal K, ptr int) error {
 	}
 
 	if !found {
-		return errors.New("pointer not exists")
+		return fdb.ErrIndexNotFound
 	}
 
-	if h.valExists(newVal) {
-		h.store[newVal] = append(h.store[newVal], ptr)
+	if newPtrs, exists := h.store[newKey]; exists {
+		h.store[newKey] = append(newPtrs, ptr)
 	} else {
-		h.store[newVal] = []int{ptr}
+		h.store[newKey] = []int{ptr}
 	}
 
 	return nil
 }
 
-func (h *HashMapIndexer[K]) Find(val K) ([]int, bool) {
+func (h *HashMapIndexer) Find(val []byte) ([]int, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	if h.valExists(val) {
-		result := make([]int, len(h.store[val]))
-		copy(result, h.store[val])
-		return result, false
+	key := bytesToKey(val)
+	ptrs, exists := h.valueExists(key)
+	if !exists {
+		return nil, false
 	}
 
-	return []int{}, true
+	result := make([]int, len(ptrs))
+	copy(result, ptrs)
+	return result, true
 }
 
-func (h *HashMapIndexer[K]) FindInRange(min K, max K) ([]int, bool) {
+func (h *HashMapIndexer) FindInRange(min []byte, max []byte) ([]int, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	var result []int
-	for val, ptrs := range h.store {
-		if val.LessOrEqual(max) && val.GreaterOrEqual(min) {
+	for key, ptrs := range h.store {
+		keyBytes := []byte(key)
+		if LessOrEqual(keyBytes, max, h.compareFunc) && GreaterOrEqual(keyBytes, min, h.compareFunc) {
 			result = append(result, ptrs...)
 		}
 	}
 
 	if len(result) == 0 {
-		return result, true
+		return nil, false
 	}
 
-	return result, false
+	return result, true
 }

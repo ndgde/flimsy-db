@@ -1,24 +1,13 @@
 package indexer
 
-type Orderable[T any] interface {
-	Equal(other T) bool
-	Less(other T) bool
-	LessOrEqual(other T) bool
-	Greater(other T) bool
-	GreaterOrEqual(other T) bool
-}
+import fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
 
-type Indexable[T any] interface {
-	Orderable[T]
-	comparable
-}
-
-type Indexer[T Indexable[T]] interface {
-	Add(val T, ptr int) error
-	Update(oldVal T, newVal T, ptr int) error
-	Delete(val T, ptr int) error
-	Find(val T) ([]int, bool)
-	FindInRange(min T, max T) ([]int, bool)
+type Indexer interface {
+	Add(val []byte, ptr int) error
+	Update(oldVal []byte, newVal []byte, ptr int) error
+	Delete(val []byte, ptr int) error
+	Find(val []byte) ([]int, bool)
+	FindInRange(min []byte, max []byte) ([]int, bool)
 }
 
 type IndexerType int
@@ -28,11 +17,10 @@ const (
 	HashMapIndexerType
 )
 
-func NewIndexer[T Indexable[T]](indexerType IndexerType) Indexer[T] {
+func NewIndexer(indexerType IndexerType, valueType fdb.TabularType) Indexer {
 	switch indexerType {
 	case HashMapIndexerType:
-		return NewHashMapIndexer[T]()
-
+		return NewHashMapIndexer(valueType)
 	default:
 		return nil
 	}
