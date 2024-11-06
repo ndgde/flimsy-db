@@ -144,22 +144,23 @@ func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
 	return nil
 }
 
-func (h *HashMapIndexer) Find(val []byte) ([]int, bool) {
+/* second return value is the empty sign */
+func (h *HashMapIndexer) Find(val []byte) []int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	key := bytesToKey(val)
 	ptrs, exists := h.valueExists(key)
 	if !exists {
-		return nil, false
+		return []int{}
 	}
 
 	result := make([]int, len(ptrs))
 	copy(result, ptrs)
-	return result, true
+	return result
 }
 
-func (h *HashMapIndexer) FindInRange(min []byte, max []byte) ([]int, bool) {
+func (h *HashMapIndexer) FindInRange(min []byte, max []byte) []int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -172,8 +173,8 @@ func (h *HashMapIndexer) FindInRange(min []byte, max []byte) ([]int, bool) {
 	}
 
 	if len(result) == 0 {
-		return nil, false
+		return []int{}
 	}
 
-	return result, true
+	return result
 }

@@ -19,9 +19,9 @@ not be changed during its execution, the function requires
 that during its execution the passed column rows do not
 change their value
 */
-func IdxrAddRow(columns []*Column, row Row, index int) error {
+func IdxrAddRow(scheme Scheme, row Row, index int) error {
 	completedOps := make(map[*Column]cm.Blob)
-	for i, col := range columns {
+	for i, col := range scheme {
 		if col.IdxrType == indexer.AbsentIndexerType {
 			continue
 		}
@@ -45,9 +45,9 @@ func IdxrAddRow(columns []*Column, row Row, index int) error {
 	return nil
 }
 
-func IdxrUpdateRow(columns []*Column, oldRow Row, newRow Row, index int) error {
+func IdxrUpdateRow(scheme Scheme, oldRow Row, newRow Row, index int) error {
 	updatedOps := make(map[*Column]cm.Blob)
-	for i, col := range columns {
+	for i, col := range scheme {
 		if col.IdxrType == indexer.AbsentIndexerType {
 			continue
 		}
@@ -71,9 +71,9 @@ func IdxrUpdateRow(columns []*Column, oldRow Row, newRow Row, index int) error {
 	return nil
 }
 
-func IdxrDeleteRow(columns []*Column, row Row, index int) error {
+func IdxrDeleteRow(scheme Scheme, row Row, index int) error {
 	deletedOps := make(map[*Column]cm.Blob)
-	for i, col := range columns {
+	for i, col := range scheme {
 		if col.IdxrType == indexer.AbsentIndexerType {
 			continue
 		}

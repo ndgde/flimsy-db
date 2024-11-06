@@ -153,10 +153,6 @@ func TestDataOperations(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to delete row: %v", err)
 	}
-
-	if len(table.Rows) != 1 {
-		t.Errorf("Expected 1 row after deletion, got %d", len(table.Rows))
-	}
 }
 
 func TestErrorCases(t *testing.T) {

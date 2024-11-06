@@ -8,8 +8,8 @@ type Indexer interface {
 	Add(val []byte, ptr int) error
 	Update(oldVal []byte, newVal []byte, ptr int) error
 	Delete(val []byte, ptr int) error
-	Find(val []byte) ([]int, bool)
-	FindInRange(min []byte, max []byte) ([]int, bool)
+	Find(val []byte) []int
+	FindInRange(min []byte, max []byte) []int
 }
 
 type IndexerType int

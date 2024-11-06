@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 
+	"math/rand"
+
 	fdb "github.com/ndgde/flimsy-db/cmd/flimsydb"
 	cm "github.com/ndgde/flimsy-db/cmd/flimsydb/common"
 	"github.com/ndgde/flimsy-db/cmd/flimsydb/indexer"
@@ -24,33 +26,81 @@ func main() {
 		fmt.Println(err)
 	}
 
-	columns := []*fdb.Column{col1, col2, col3}
+	col4, err := fdb.NewColumn("Position", cm.StringTType, "", indexer.HashMapIndexerType)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	col5, err := fdb.NewColumn("Department", cm.StringTType, "", indexer.HashMapIndexerType)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	col6, err := fdb.NewColumn("Experience", cm.Int32TType, int32(0), indexer.HashMapIndexerType)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	col7, err := fdb.NewColumn("Country", cm.StringTType, "", indexer.HashMapIndexerType)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	columns := []*fdb.Column{col1, col2, col3, col4, col5, col6, col7}
 
 	table := fdb.NewTable(columns)
 
-	if err = table.InsertRow(map[string]any{
-		"Name":   "John Doe",
-		"Age":    int32(32),
-		"Salary": float64(12),
-	}); err != nil {
-		fmt.Println("Row adding error :", err)
-	}
+	for i := 0; i < 250; i++ {
+		row := map[string]any{
+			"Name":       randomName(),
+			"Age":        int32(rand.Intn(65) + 18),
+			"Salary":     float64(rand.Intn(100000)) / 100.0,
+			"Position":   randomPosition(),
+			"Department": randomDepartment(),
+			"Experience": int32(rand.Intn(40)),
+			"Country":    randomCountry(),
+		}
 
-	if err = table.InsertRow(map[string]any{
-		"Name":   "Max Mustermann",
-		"Age":    int32(25),
-		"Salary": float64(103),
-	}); err != nil {
-		fmt.Println("Row adding error :", err)
-	}
-
-	if err = table.InsertRow(map[string]any{
-		"Name":   "Fill Murray",
-		"Age":    int32(70),
-		"Salary": float64(75),
-	}); err != nil {
-		fmt.Println("Row adding error :", err)
+		if err := table.InsertRow(row); err != nil {
+			fmt.Println("Row adding error:", err)
+		}
 	}
 
 	fdb.PrintTable(table)
+
+	// rows, err := table.Find("Name", "Jane Smith")
+	// if err != nil {
+	// 	fmt.Printf("finding error: %v", err)
+	// }
+	// for _, row := range rows {
+	// 	fmt.Println(row)
+	// }
+
+	rows, err := table.FindInRange("Age", int32(19), int32(22))
+	if err != nil {
+		fmt.Printf("finding error: %v", err)
+	}
+	for _, row := range rows {
+		fmt.Println(row)
+	}
+}
+
+func randomName() string {
+	names := []string{"John Doe", "Max Mustermann", "Fill Murray", "Jane Smith", "Alice Johnson", "Bob Brown"}
+	return names[rand.Intn(len(names))]
+}
+
+func randomPosition() string {
+	positions := []string{"Engineer", "Manager", "Analyst", "Director", "Consultant", "Developer"}
+	return positions[rand.Intn(len(positions))]
+}
+
+func randomDepartment() string {
+	departments := []string{"Finance", "Engineering", "HR", "Sales", "Marketing", "Support"}
+	return departments[rand.Intn(len(departments))]
+}
+
+func randomCountry() string {
+	countries := []string{"USA", "Germany", "Canada", "UK", "Australia", "India"}
+	return countries[rand.Intn(len(countries))]
 }

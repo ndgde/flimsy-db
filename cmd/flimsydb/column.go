@@ -13,6 +13,8 @@ type Column struct {
 	Idxr     indexer.Indexer
 }
 
+type Scheme []*Column
+
 func NewColumn(name string, valType cm.TabularType, defaultVal any, idxrType indexer.IndexerType) (*Column, error) {
 	if err := validateType(defaultVal, valType); err != nil {
 		return nil, err

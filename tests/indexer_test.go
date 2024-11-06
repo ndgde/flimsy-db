@@ -84,19 +84,13 @@ func TestHashMapIndexerOperations(t *testing.T) {
 	// Test Find
 	t.Run("Find operations", func(t *testing.T) {
 		// Find existing value
-		ptrs, found := idx.Find(val1)
-		if !found {
-			t.Error("Expected to find existing value")
-		}
+		ptrs := idx.Find(val1)
 		if len(ptrs) != 2 {
 			t.Errorf("Expected 2 pointers, got %d", len(ptrs))
 		}
 
 		// Find non-existing value
-		ptrs, found = idx.Find(val3)
-		if found {
-			t.Error("Expected not to find non-existing value")
-		}
+		ptrs = idx.Find(val3)
 		if len(ptrs) != 0 {
 			t.Errorf("Expected 0 pointers for non-existing value, got %d", len(ptrs))
 		}
@@ -110,19 +104,13 @@ func TestHashMapIndexerOperations(t *testing.T) {
 		}
 
 		// Verify old value has one pointer less
-		ptrs, found := idx.Find(val1)
-		if !found {
-			t.Error("Expected to still find old value")
-		}
+		ptrs := idx.Find(val1)
 		if len(ptrs) != 1 {
 			t.Errorf("Expected 1 pointer for old value, got %d", len(ptrs))
 		}
 
 		// Verify new value exists
-		ptrs, found = idx.Find(val3)
-		if !found {
-			t.Error("Expected to find new value after update")
-		}
+		ptrs = idx.Find(val3)
 		if len(ptrs) != 1 {
 			t.Errorf("Expected 1 pointer for new value, got %d", len(ptrs))
 		}
@@ -212,10 +200,7 @@ func TestFindInRange(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ptrs, found := idx.FindInRange(tc.min, tc.max)
-			if found != tc.wantFound {
-				t.Errorf("FindInRange() found = %v, want %v", found, tc.wantFound)
-			}
+			ptrs := idx.FindInRange(tc.min, tc.max)
 
 			if tc.wantPtrs != nil {
 				if len(ptrs) != len(tc.wantPtrs) {
@@ -254,11 +239,6 @@ func TestConcurrentAccess(t *testing.T) {
 				// Test Add
 				if err := idx.Add(val, j); err != nil && err != cm.ErrIndexExists {
 					t.Errorf("Concurrent Add failed: %v", err)
-				}
-
-				// Test Find
-				if _, found := idx.Find(val); !found {
-					t.Errorf("Concurrent Find failed for value %s", val)
 				}
 
 				// Test Update

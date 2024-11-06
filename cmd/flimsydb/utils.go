@@ -112,6 +112,19 @@ func Deserialize(valueType cm.TabularType, value cm.Blob) (any, error) {
 	}
 }
 
+func DeserializeRow(scheme Scheme, row Row) ([]any, error) {
+	result := make([]any, len(scheme))
+	for i, col := range scheme {
+		value, err := Deserialize(col.Type, row[i])
+		if err != nil {
+			return nil, fmt.Errorf("deserialization error: %w", err)
+		}
+		result[i] = value
+	}
+
+	return result, nil
+}
+
 func CopyRow(row Row) Row {
 	rowCopy := make(Row, len(row))
 
@@ -126,14 +139,14 @@ func CopyRow(row Row) Row {
 }
 
 func getColumnWidths(t *Table) []int {
-	widths := make([]int, len(t.Columns))
+	widths := make([]int, len(t.scheme))
 
-	for i, col := range t.Columns {
+	for i, col := range t.scheme {
 		widths[i] = len(col.Name)
 	}
 
-	for _, row := range t.Rows {
-		for i, col := range t.Columns {
+	for _, row := range t.rows {
+		for i, col := range t.scheme {
 			value, err := Deserialize(col.Type, row[i])
 			if err != nil {
 				continue
@@ -152,7 +165,7 @@ func PrintTable(t *Table) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	if len(t.Columns) == 0 {
+	if len(t.scheme) == 0 {
 		fmt.Println("Empty table")
 		return
 	}
@@ -169,15 +182,15 @@ func PrintTable(t *Table) {
 
 	printLine()
 	fmt.Print("|")
-	for i, col := range t.Columns {
+	for i, col := range t.scheme {
 		fmt.Printf(" %-*s |", widths[i], col.Name)
 	}
 	fmt.Println()
 	printLine()
 
-	for _, row := range t.Rows {
+	for _, row := range t.rows {
 		fmt.Print("|")
-		for i, col := range t.Columns {
+		for i, col := range t.scheme {
 			value, err := Deserialize(col.Type, row[i])
 			if err != nil {
 				fmt.Printf(" %-*s |", widths[i], "ERROR")
