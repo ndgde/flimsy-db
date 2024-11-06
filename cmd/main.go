@@ -9,17 +9,17 @@ import (
 )
 
 func main() {
-	col1, err := fdb.NewColumn("Name", cm.StringTType, "", indexer.AbsentIndexerType)
+	col1, err := fdb.NewColumn("Name", cm.StringTType, "", indexer.HashMapIndexerType)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col2, err := fdb.NewColumn("Age", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
+	col2, err := fdb.NewColumn("Age", cm.Int32TType, int32(0), indexer.HashMapIndexerType)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col3, err := fdb.NewColumn("Salary", cm.Float64TType, float64(0), indexer.AbsentIndexerType)
+	col3, err := fdb.NewColumn("Salary", cm.Float64TType, float64(0), indexer.HashMapIndexerType)
 	if err != nil {
 		fmt.Println(err)
 	}

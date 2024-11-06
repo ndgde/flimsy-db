@@ -86,6 +86,10 @@ func (t *Table) InsertRow(values map[string]any) error {
 	}
 	t.mu.RUnlock()
 
+	if err := IdxrAddRow(t.Columns, row, len(t.Rows)); err != nil {
+		return fmt.Errorf("indexation failed during add: %w", err)
+	}
+
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.Rows = append(t.Rows, row)
@@ -101,10 +105,9 @@ func (t *Table) GetRow(index int) (Row, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	result := make(Row, len(t.Columns))
-	copy(result, t.Rows[index])
+	rowCopy := CopyRow(t.Rows[index])
 
-	return result, nil
+	return rowCopy, nil
 }
 
 func (t *Table) UpdateRow(index int, values map[string]any) error {
@@ -117,8 +120,8 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 	}
 
 	t.mu.RLock()
-	row := make(Row, len(t.Columns))
-	copy(row, t.Rows[index])
+	newRow := make(Row, len(t.Columns))
+	copy(newRow, t.Rows[index])
 
 	for colName, newValue := range values {
 		colIndex := t.ColumnIndex[colName]
@@ -130,13 +133,19 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 			return fmt.Errorf("serialization failed: %w", cm.ErrInvalidData)
 		}
 
-		row[colIndex] = blobValue
+		newRow[colIndex] = blobValue
 	}
+
+	oldRow := CopyRow(t.Rows[index])
 	t.mu.RUnlock()
+
+	if err := IdxrUpdateRow(t.Columns, oldRow, newRow, index); err != nil {
+		return fmt.Errorf("indexation failed during update: %w", err)
+	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.Rows[index] = row
+	t.Rows[index] = newRow
 
 	return nil
 }
@@ -146,9 +155,32 @@ func (t *Table) DeleteRow(index int) error {
 		return err
 	}
 
+	t.mu.RLock()
+	if err := IdxrDeleteRow(t.Columns, t.Rows[index], index); err != nil {
+		t.mu.RUnlock()
+		return fmt.Errorf("indexation failed during delete: %w", err)
+	}
+	for i := index + 1; i < len(t.Rows); i++ {
+		row := t.Rows[i]
+		if err := IdxrDeleteRow(t.Columns, row, i); err != nil {
+			t.mu.RUnlock()
+			return fmt.Errorf("indexation failed during update: %w", err)
+		}
+
+		if err := IdxrAddRow(t.Columns, row, i-1); err != nil {
+			t.mu.RUnlock()
+			return fmt.Errorf("indexation failed during re-add: %w", err)
+		}
+	}
+	t.mu.RUnlock()
+
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.Rows = append(t.Rows[:index], t.Rows[index+1:]...)
 
 	return nil
 }
+
+// func (t *Table) restoreIndexing() {
+
+// }

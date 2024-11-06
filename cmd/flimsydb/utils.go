@@ -112,6 +112,19 @@ func Deserialize(valueType cm.TabularType, value cm.Blob) (any, error) {
 	}
 }
 
+func CopyRow(row Row) Row {
+	rowCopy := make(Row, len(row))
+
+	for i, inner := range row {
+		if inner != nil {
+			rowCopy[i] = make(cm.Blob, len(inner))
+			copy(rowCopy[i], inner)
+		}
+	}
+
+	return rowCopy
+}
+
 func getColumnWidths(t *Table) []int {
 	widths := make([]int, len(t.Columns))
 
