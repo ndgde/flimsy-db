@@ -83,6 +83,19 @@ func (t *Table) InsertRow(values map[string]any) error {
 			}
 		}
 
+		/* so far the check does not take into account uniqueness if the value is set by default */
+		if col.Flags&UniqueFlag != 0 {
+			rows, err := t.Find(col.Name, value)
+			if err != nil {
+				t.mu.RUnlock()
+				return fmt.Errorf("error when checking value for uniqueness")
+			}
+			if len(rows) != 0 {
+				t.mu.RUnlock()
+				return fmt.Errorf("the field contains the \"unique\" flag, but the supplied value %v already exists", value)
+			}
+		}
+
 		row[i] = blobValue
 	}
 	t.mu.RUnlock()
@@ -121,8 +134,7 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 	}
 
 	t.mu.RLock()
-	newRow := make(Row, len(t.scheme))
-	copy(newRow, t.rows[index])
+	newRow := CopyRow(t.rows[index])
 
 	for colName, newValue := range values {
 		colIndex := t.columnIndex[colName]
@@ -132,6 +144,28 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 		if err != nil {
 			t.mu.RUnlock()
 			return fmt.Errorf("serialization failed: %w", cm.ErrInvalidData)
+		}
+
+		if col.Flags&ImmutableFlag != 0 {
+			t.mu.RUnlock()
+			return fmt.Errorf("error when trying to change a field marked with the \"immutable\" flag")
+		}
+
+		if col.Flags&UniqueFlag != 0 {
+			rows, err := t.Find(col.Name, newValue)
+			if err != nil {
+				t.mu.RUnlock()
+				return fmt.Errorf("error when checking value for uniqueness")
+			}
+			if cm.Equal(newRow[colIndex], blobValue, cm.GetCompareFunc(col.Type)) {
+				if len(rows) != 1 {
+					t.mu.RUnlock()
+					return fmt.Errorf("the field contains the \"unique\" flag, but the supplied value %v already exists", newValue)
+				}
+			} else if len(rows) != 0 {
+				t.mu.RUnlock()
+				return fmt.Errorf("the field contains the \"unique\" flag, but the supplied value %v already exists", newValue)
+			}
 		}
 
 		newRow[colIndex] = blobValue
@@ -217,7 +251,22 @@ func (t *Table) Find(colName string, val any) ([][]any, error) {
 
 	var indexes []int
 	if col.IdxrType == indexer.AbsentIndexerType {
-		return [][]any{}, nil /* there should be linear finding algorithm */
+		t.mu.RLock()
+		if col.Flags&UniqueFlag != 0 {
+			for i, row := range t.rows {
+				if cm.Equal(row[colIndex], blobValue, cm.GetCompareFunc(col.Type)) {
+					indexes = append(indexes, i)
+					break
+				}
+			}
+		} else {
+			for i, row := range t.rows {
+				if cm.Equal(row[colIndex], blobValue, cm.GetCompareFunc(col.Type)) {
+					indexes = append(indexes, i)
+				}
+			}
+		}
+		t.mu.RUnlock()
 	} else {
 		indexes = col.Idxr.Find(blobValue)
 	}
@@ -262,8 +311,15 @@ func (t *Table) FindInRange(colName string, minVal any, maxVal any) ([][]any, er
 	}
 
 	var indexes []int
-	if col.IdxrType == indexer.AbsentIndexerType {
-		return [][]any{}, nil /* there should be linear finding algorithm */
+	if col.IdxrType == indexer.AbsentIndexerType || col.IdxrType == indexer.HashMapIndexerType {
+		t.mu.RLock()
+		for i, row := range t.rows {
+			compFunc := cm.GetCompareFunc(col.Type)
+			if cm.LessOrEqual(row[colIndex], blobMaxVal, compFunc) && cm.GreaterOrEqual(row[colIndex], blobMinVal, compFunc) {
+				indexes = append(indexes, i)
+			}
+		}
+		t.mu.RUnlock()
 	} else {
 		indexes = col.Idxr.FindInRange(blobMinVal, blobMaxVal)
 	}

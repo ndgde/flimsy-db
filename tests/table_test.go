@@ -9,17 +9,17 @@ import (
 )
 
 func TestTableCreation(t *testing.T) {
-	col, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
+	col, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column: %v", err)
 	}
 
-	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType)
+	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column 'name': %v", err)
 	}
 
-	col3, err := flimsydb.NewColumn("score", cm.Float64TType, float64(0), indexer.AbsentIndexerType)
+	col3, err := flimsydb.NewColumn("score", cm.Float64TType, float64(0), indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column 'score': %v", err)
 	}
@@ -29,12 +29,12 @@ func TestTableCreation(t *testing.T) {
 }
 
 func TestInsertRow(t *testing.T) {
-	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
+	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column 'id': %v", err)
 	}
 
-	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType)
+	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column 'name': %v", err)
 	}
@@ -84,12 +84,12 @@ func TestInsertRow(t *testing.T) {
 }
 
 func TestUpdateAndGetRow(t *testing.T) {
-	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
+	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column 'id': %v", err)
 	}
 
-	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType)
+	col2, err := flimsydb.NewColumn("name", cm.StringTType, "", indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column 'name': %v", err)
 	}
@@ -139,7 +139,7 @@ func TestUpdateAndGetRow(t *testing.T) {
 }
 
 func TestDeleteRow(t *testing.T) {
-	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType)
+	col1, err := flimsydb.NewColumn("id", cm.Int32TType, int32(0), indexer.AbsentIndexerType, 0)
 	if err != nil {
 		t.Fatalf("Failed to create column 'id': %v", err)
 	}

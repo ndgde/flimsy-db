@@ -11,37 +11,37 @@ import (
 )
 
 func main() {
-	col1, err := fdb.NewColumn("Name", cm.StringTType, "", indexer.HashMapIndexerType)
+	col1, err := fdb.NewColumn("Name", cm.StringTType, "", indexer.HashMapIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col2, err := fdb.NewColumn("Age", cm.Int32TType, int32(0), indexer.HashMapIndexerType)
+	col2, err := fdb.NewColumn("Age", cm.Int32TType, int32(0), indexer.HashMapIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col3, err := fdb.NewColumn("Salary", cm.Float64TType, float64(0), indexer.HashMapIndexerType)
+	col3, err := fdb.NewColumn("Salary", cm.Float64TType, float64(0), indexer.HashMapIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col4, err := fdb.NewColumn("Position", cm.StringTType, "", indexer.HashMapIndexerType)
+	col4, err := fdb.NewColumn("Position", cm.StringTType, "", indexer.HashMapIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col5, err := fdb.NewColumn("Department", cm.StringTType, "", indexer.HashMapIndexerType)
+	col5, err := fdb.NewColumn("Department", cm.StringTType, "", indexer.HashMapIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col6, err := fdb.NewColumn("Experience", cm.Int32TType, int32(0), indexer.HashMapIndexerType)
+	col6, err := fdb.NewColumn("Experience", cm.Int32TType, int32(0), indexer.AbsentIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	col7, err := fdb.NewColumn("Country", cm.StringTType, "", indexer.HashMapIndexerType)
+	col7, err := fdb.NewColumn("Country", cm.StringTType, "", indexer.HashMapIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -68,21 +68,36 @@ func main() {
 
 	fdb.PrintTable(table)
 
-	// rows, err := table.Find("Name", "Jane Smith")
-	// if err != nil {
-	// 	fmt.Printf("finding error: %v", err)
-	// }
-	// for _, row := range rows {
-	// 	fmt.Println(row)
-	// }
-
-	rows, err := table.FindInRange("Age", int32(19), int32(22))
+	rows, err := table.Find("Name", "Jane Smith")
 	if err != nil {
 		fmt.Printf("finding error: %v", err)
 	}
 	for _, row := range rows {
 		fmt.Println(row)
 	}
+
+	// start := time.Now()
+	// rows, err := table.FindInRange("Age", int32(19), int32(22))
+	// elapsed := time.Since(start)
+	// if err != nil {
+	// 	fmt.Printf("finding error: %v", err)
+	// }
+	// fmt.Printf("Execution time: %s\n", elapsed)
+	// for _, row := range rows {
+	// 	fmt.Println(row)
+	// }
+	// fmt.Println()
+
+	// start = time.Now()
+	// rows, err = table.FindInRange("Experience", int32(20), int32(22))
+	// elapsed = time.Since(start)
+	// if err != nil {
+	// 	fmt.Printf("finding error: %v", err)
+	// }
+	// fmt.Printf("Execution time: %s\n", elapsed)
+	// for _, row := range rows {
+	// 	fmt.Println(row)
+	// }
 }
 
 func randomName() string {
