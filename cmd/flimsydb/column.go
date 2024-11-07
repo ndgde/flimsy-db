@@ -17,6 +17,12 @@ const (
 	ImmutableFlag
 )
 
+/*
+It may be worth reforming the flags to be able to supplement their information,
+for example, in the case of a foreign key, store which table and column it refers to,
+and do the appropriate checks for existence and consistency
+*/
+
 type Column struct {
 	Name     string
 	Type     cm.TabularType

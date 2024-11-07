@@ -15,6 +15,7 @@ type Table struct {
 	scheme      Scheme
 	columnIndex map[string]int
 	rows        []Row
+	// rowMutexes  map[int]sync.RWMutex
 }
 
 func NewTable(scheme Scheme) *Table {
@@ -65,7 +66,9 @@ func (t *Table) InsertRow(values map[string]any) error {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	t.mu.RLock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	row := make(Row, len(t.scheme))
 
 	for i, col := range t.scheme {
@@ -78,34 +81,27 @@ func (t *Table) InsertRow(values map[string]any) error {
 		} else {
 			blobValue, err = Serialize(col.Type, value)
 			if err != nil {
-				t.mu.RUnlock()
 				return fmt.Errorf("serialization failed: %w", cm.ErrInvalidData)
 			}
 		}
 
-		/* so far the check does not take into account uniqueness if the value is set by default */
 		if col.Flags&UniqueFlag != 0 {
 			rows, err := t.Find(col.Name, value)
 			if err != nil {
-				t.mu.RUnlock()
 				return fmt.Errorf("error when checking value for uniqueness")
 			}
 			if len(rows) != 0 {
-				t.mu.RUnlock()
 				return fmt.Errorf("the field contains the \"unique\" flag, but the supplied value %v already exists", value)
 			}
 		}
 
 		row[i] = blobValue
 	}
-	t.mu.RUnlock()
 
 	if err := IdxrAddRow(t.scheme, row, len(t.rows)); err != nil {
 		return fmt.Errorf("indexation failed during add: %w", err)
 	}
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	t.rows = append(t.rows, row)
 
 	return nil
@@ -133,7 +129,10 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	t.mu.RLock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	oldRow := CopyRow(t.rows[index])
 	newRow := CopyRow(t.rows[index])
 
 	for colName, newValue := range values {
@@ -142,28 +141,23 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 
 		blobValue, err := Serialize(col.Type, newValue)
 		if err != nil {
-			t.mu.RUnlock()
 			return fmt.Errorf("serialization failed: %w", cm.ErrInvalidData)
 		}
 
 		if col.Flags&ImmutableFlag != 0 {
-			t.mu.RUnlock()
 			return fmt.Errorf("error when trying to change a field marked with the \"immutable\" flag")
 		}
 
 		if col.Flags&UniqueFlag != 0 {
 			rows, err := t.Find(col.Name, newValue)
 			if err != nil {
-				t.mu.RUnlock()
 				return fmt.Errorf("error when checking value for uniqueness")
 			}
 			if cm.Equal(newRow[colIndex], blobValue, cm.GetCompareFunc(col.Type)) {
 				if len(rows) != 1 {
-					t.mu.RUnlock()
 					return fmt.Errorf("the field contains the \"unique\" flag, but the supplied value %v already exists", newValue)
 				}
 			} else if len(rows) != 0 {
-				t.mu.RUnlock()
 				return fmt.Errorf("the field contains the \"unique\" flag, but the supplied value %v already exists", newValue)
 			}
 		}
@@ -171,15 +165,10 @@ func (t *Table) UpdateRow(index int, values map[string]any) error {
 		newRow[colIndex] = blobValue
 	}
 
-	oldRow := CopyRow(t.rows[index])
-	t.mu.RUnlock()
-
 	if err := IdxrUpdateRow(t.scheme, oldRow, newRow, index); err != nil {
 		return fmt.Errorf("indexation failed during update: %w", err)
 	}
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	t.rows[index] = newRow
 
 	return nil
@@ -190,27 +179,26 @@ func (t *Table) DeleteRow(index int) error {
 		return err
 	}
 
-	t.mu.RLock()
-	if err := IdxrDeleteRow(t.scheme, t.rows[index], index); err != nil {
-		t.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	oldRow := CopyRow(t.rows[index])
+
+	if err := IdxrDeleteRow(t.scheme, oldRow, index); err != nil {
 		return fmt.Errorf("indexation failed during delete: %w", err)
 	}
+
 	for i := index + 1; i < len(t.rows); i++ {
 		row := t.rows[i]
 		if err := IdxrDeleteRow(t.scheme, row, i); err != nil {
-			t.mu.RUnlock()
 			return fmt.Errorf("indexation failed during update: %w", err)
 		}
 
 		if err := IdxrAddRow(t.scheme, row, i-1); err != nil {
-			t.mu.RUnlock()
 			return fmt.Errorf("indexation failed during re-add: %w", err)
 		}
 	}
-	t.mu.RUnlock()
 
-	t.mu.Lock()
-	defer t.mu.Unlock()
 	t.rows = append(t.rows[:index], t.rows[index+1:]...)
 
 	return nil
