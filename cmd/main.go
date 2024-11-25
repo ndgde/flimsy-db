@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	col1, err := fdb.NewColumn("Name", cm.StringTType, "", indexer.HashMapIndexerType, 0)
+	col1, err := fdb.NewColumn("Name", cm.StringTType, "", indexer.BTreeIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -21,7 +21,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	col3, err := fdb.NewColumn("Salary", cm.Float64TType, float64(0), indexer.HashMapIndexerType, 0)
+	col3, err := fdb.NewColumn("Salary", cm.Float64TType, float64(0), indexer.BTreeIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -31,7 +31,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	col5, err := fdb.NewColumn("Department", cm.StringTType, "", indexer.HashMapIndexerType, 0)
+	col5, err := fdb.NewColumn("Department", cm.StringTType, "", indexer.BTreeIndexerType, 0)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -77,7 +77,7 @@ func main() {
 	}
 
 	// start := time.Now()
-	// rows, err := table.FindInRange("Age", int32(19), int32(22))
+	// rows, err = table.FindInRange("Age", int32(19), int32(22))
 	// elapsed := time.Since(start)
 	// if err != nil {
 	// 	fmt.Printf("finding error: %v", err)

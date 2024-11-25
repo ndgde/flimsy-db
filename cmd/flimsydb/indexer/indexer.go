@@ -5,11 +5,11 @@ import (
 )
 
 type Indexer interface {
-	Add(val []byte, ptr int) error
-	Update(oldVal []byte, newVal []byte, ptr int) error
-	Delete(val []byte, ptr int) error
-	Find(val []byte) []int
-	FindInRange(min []byte, max []byte) []int
+	Add(val cm.Blob, ptr int) error
+	Update(oldVal cm.Blob, newVal cm.Blob, ptr int) error
+	Delete(val cm.Blob, ptr int) error
+	Find(val cm.Blob) []int
+	FindInRange(min cm.Blob, max cm.Blob) []int
 }
 
 type IndexerType int
@@ -17,12 +17,22 @@ type IndexerType int
 const (
 	AbsentIndexerType IndexerType = iota
 	HashMapIndexerType
+	BTreeIndexerType
 )
+
+func calculateDegree(pageSize int, keySize int, pointerSize int, overhead int) int {
+	availableSpace := pageSize - overhead
+	recordSize := keySize + pointerSize
+	maxKeys := availableSpace / recordSize
+	return maxKeys + 1
+}
 
 func NewIndexer(indexerType IndexerType, valueType cm.TabularType) Indexer {
 	switch indexerType {
 	case HashMapIndexerType:
 		return NewHashMapIndexer(valueType)
+	case BTreeIndexerType:
+		return NewBTreeIndexer(valueType, calculateDegree(4096, 8, 8, 64))
 	default:
 		return nil
 	}

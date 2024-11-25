@@ -28,7 +28,7 @@ func (h *HashMapIndexer) valueExists(key string) ([]int, bool) {
 	return ptrs, exists
 }
 
-func (h *HashMapIndexer) Add(val []byte, ptr int) error {
+func (h *HashMapIndexer) Add(val cm.Blob, ptr int) error {
 	key := bytesToKey(val)
 
 	h.mu.RLock()
@@ -60,7 +60,7 @@ func (h *HashMapIndexer) Add(val []byte, ptr int) error {
 	return nil
 }
 
-func (h *HashMapIndexer) Delete(val []byte, ptr int) error {
+func (h *HashMapIndexer) Delete(val cm.Blob, ptr int) error {
 	key := bytesToKey(val)
 
 	h.mu.RLock()
@@ -93,7 +93,7 @@ func (h *HashMapIndexer) Delete(val []byte, ptr int) error {
 	return cm.ErrIndexNotFound
 }
 
-func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
+func (h *HashMapIndexer) Update(oldVal cm.Blob, newVal cm.Blob, ptr int) error {
 	if cm.Equal(oldVal, newVal, h.compareFunc) {
 		return nil
 	}
@@ -145,7 +145,7 @@ func (h *HashMapIndexer) Update(oldVal []byte, newVal []byte, ptr int) error {
 }
 
 /* second return value is the empty sign */
-func (h *HashMapIndexer) Find(val []byte) []int {
+func (h *HashMapIndexer) Find(val cm.Blob) []int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
@@ -160,7 +160,7 @@ func (h *HashMapIndexer) Find(val []byte) []int {
 	return result
 }
 
-func (h *HashMapIndexer) FindInRange(min []byte, max []byte) []int {
+func (h *HashMapIndexer) FindInRange(min cm.Blob, max cm.Blob) []int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 

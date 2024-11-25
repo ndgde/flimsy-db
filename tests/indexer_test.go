@@ -256,3 +256,174 @@ func TestConcurrentAccess(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestBTreeIndexerOperations(t *testing.T) {
+	idx := indexer.NewIndexer(indexer.BTreeIndexerType, cm.StringTType)
+
+	// Test data
+	val1 := []byte("test1")
+	val2 := []byte("test2")
+	val3 := []byte("test3")
+
+	// Test Add
+	t.Run("Add operations", func(t *testing.T) {
+		// Add first value
+		if err := idx.Add(val1, 1); err != nil {
+			t.Errorf("Failed to add first value: %v", err)
+		}
+
+		// Add same value with different pointer
+		if err := idx.Add(val1, 2); err != nil {
+			t.Errorf("Failed to add same value with different pointer: %v", err)
+		}
+
+		// Add different value
+		if err := idx.Add(val2, 3); err != nil {
+			t.Errorf("Failed to add different value: %v", err)
+		}
+
+		// Add third value
+		if err := idx.Add(val3, 4); err != nil {
+			t.Errorf("Failed to add third value: %v", err)
+		}
+	})
+
+	// Test Find
+	t.Run("Find operations", func(t *testing.T) {
+		// Find existing value
+		ptrs := idx.Find(val1)
+		if len(ptrs) != 2 {
+			t.Errorf("Expected 2 pointers, got %d", len(ptrs))
+		}
+
+		// Find non-existing value
+		ptrs = idx.Find([]byte("nonexistent"))
+		if len(ptrs) != 0 {
+			t.Errorf("Expected 0 pointers for non-existing value, got %d", len(ptrs))
+		}
+	})
+
+	// Test FindInRange
+	t.Run("FindInRange operations", func(t *testing.T) {
+		// Add additional test data for range queries
+		testData := []struct {
+			value []byte
+			ptr   int
+		}{
+			{[]byte("a"), 5},
+			{[]byte("b"), 6},
+			{[]byte("c"), 7},
+			{[]byte("d"), 8},
+			{[]byte("e"), 9},
+		}
+
+		for _, td := range testData {
+			if err := idx.Add(td.value, td.ptr); err != nil {
+				t.Fatalf("Failed to add test data: %v", err)
+			}
+		}
+
+		testCases := []struct {
+			name      string
+			min       []byte
+			max       []byte
+			wantPtrs  []int
+			wantFound bool
+		}{
+			{
+				name:      "Find in valid range",
+				min:       []byte("b"),
+				max:       []byte("d"),
+				wantPtrs:  []int{6, 7, 8},
+				wantFound: true,
+			},
+			{
+				name:      "Find in empty range",
+				min:       []byte("x"),
+				max:       []byte("z"),
+				wantPtrs:  nil,
+				wantFound: false,
+			},
+			{
+				name:      "Find in range with single value",
+				min:       []byte("c"),
+				max:       []byte("c"),
+				wantPtrs:  []int{7},
+				wantFound: true,
+			},
+			{
+				name:      "Find in full range",
+				min:       []byte("a"),
+				max:       []byte("e"),
+				wantPtrs:  []int{5, 6, 7, 8, 9},
+				wantFound: true,
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				ptrs := idx.FindInRange(tc.min, tc.max)
+
+				if tc.wantPtrs != nil {
+					if len(ptrs) != len(tc.wantPtrs) {
+						t.Errorf("FindInRange() returned %d pointers, want %d", len(ptrs), len(tc.wantPtrs))
+						return
+					}
+
+					// Sort both slices to ensure consistent comparison
+					sort.Ints(ptrs)
+					sort.Ints(tc.wantPtrs)
+
+					if !reflect.DeepEqual(ptrs, tc.wantPtrs) {
+						t.Errorf("FindInRange() returned pointers %v, want %v", ptrs, tc.wantPtrs)
+					}
+				}
+			})
+		}
+	})
+}
+
+func TestBTreeIndexerConcurrentAccess(t *testing.T) {
+	idx := indexer.NewIndexer(indexer.BTreeIndexerType, cm.StringTType)
+	const goroutines = 10
+	const operationsPerGoroutine = 100
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	for i := 0; i < goroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < operationsPerGoroutine; j++ {
+				val := []byte(fmt.Sprintf("test%d-%d", id, j))
+				newVal := []byte(fmt.Sprintf("new%d-%d", id, j))
+
+				// Тест Add
+				err := idx.Add(val, j)
+				if err != nil && err != cm.ErrIndexExists {
+					t.Errorf("Concurrent Add failed: %v", err)
+					continue
+				}
+
+				// Тест Find
+				_ = idx.Find(val)
+
+				// Тест Update
+				err = idx.Update(val, newVal, j)
+				if err != nil && err != cm.ErrIndexNotFound {
+					t.Errorf("Concurrent Update failed: %v", err)
+					continue
+				}
+
+				// Тест Delete
+				err = idx.Delete(newVal, j)
+				if err != nil && err != cm.ErrIndexNotFound {
+					t.Errorf("Concurrent Delete failed: %v", err)
+					continue
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+}
