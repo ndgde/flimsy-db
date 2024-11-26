@@ -18,7 +18,7 @@ func NewFlimsyDB() *FlimsyDB {
 	}
 }
 
-func (db *FlimsyDB) CreateTable(name string, columns []*Column) error {
+func (db *FlimsyDB) CreateTable(name string, scheme Scheme) error {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -26,7 +26,7 @@ func (db *FlimsyDB) CreateTable(name string, columns []*Column) error {
 		return cm.ErrTableExists
 	}
 
-	db.tables[name] = NewTable(columns)
+	db.tables[name] = NewTable(scheme)
 	return nil
 }
 
