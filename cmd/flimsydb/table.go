@@ -324,3 +324,19 @@ func (t *Table) FindInRange(colName string, minVal any, maxVal any) ([][]any, er
 
 	return result, nil
 }
+
+func (t *Table) GetAll() ([][]any, error) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	result := make([][]any, len(t.rows))
+	for i, row := range t.rows {
+		deserializedRow, err := DeserializeRow(t.scheme, CopyRow(row))
+		if err != nil {
+			return nil, fmt.Errorf("row deserialization error: %w", err)
+		}
+		result[i] = deserializedRow
+	}
+
+	return result, nil
+}
